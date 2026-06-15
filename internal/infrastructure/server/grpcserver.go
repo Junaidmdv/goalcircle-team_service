@@ -6,7 +6,10 @@ import (
 
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 
+	teamv1 "github.com/Junaidmdv/goalcircle-protos/team/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
+	team_handler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/team"
+	team_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
 	"google.golang.org/grpc"
 )
 
@@ -32,6 +35,15 @@ func NewGRPCServer(cnfg *config.Config, logger logger.Logger) *GRPCServer {
 }
 
 func (gs *GRPCServer) BootstrapSetup() {
+	teamUsecase := team_uc.NewTeamUsecase()
+	teamHandler := team_handler.NewTeamHandler(teamUsecase)  
+	
+
+
+
+
+
+	teamv1.RegisterTeamServiceServer(gs.Server, teamHandler)
 
 }
 

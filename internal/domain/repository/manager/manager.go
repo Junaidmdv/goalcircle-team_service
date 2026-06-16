@@ -1,6 +1,10 @@
 package manager
 
-import "gorm.io/gorm"
+import (
+	"context"
+
+	"gorm.io/gorm"
+)
 
 
 
@@ -12,5 +16,9 @@ type managerRepository struct{
     db *gorm.DB
 }
 
+
+func(mr *managerRepository)AddManager(ctx context.Context){
+
+}
 
 

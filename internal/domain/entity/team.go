@@ -1,18 +1,19 @@
 package entity
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Team struct {
-	ID          string
-	UUID        string `gorm:"primaryKey"`
-	Name        string
-	City        string
-	Logo        string
-	ManagerID   string
-	TeamStatus  string
-	PlayerCount string 
-	CreatedAt   time.Time   
+	ID          uuid.UUID `gorm:"primaryKey"`
+	Name          string
+	City          string
+	Logo          string
+	TeamStatus    string
+	PlayerCount   string
+	CaptionID     uuid.UUID
+	ViceCaptionID uuid.UUID
+	CreatedAt     time.Time
 }
-
-
-

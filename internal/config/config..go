@@ -9,11 +9,13 @@ import (
 type Config struct {
 	Server *GRPCServerConfig 
 	Postgres *PostgresConfig 
+	UserSrv  *UserService
 }
 
 type ConfigBuilder interface {
 	WithGrpcServer() ConfigBuilder 
-	WithPostgres()ConfigBuilder
+	WithPostgres()ConfigBuilder 
+	WithUserService()ConfigBuilder
 	Build() (*Config, []error)
 }
 

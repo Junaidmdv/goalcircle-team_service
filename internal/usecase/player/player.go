@@ -8,6 +8,8 @@ import (
 	teamRepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammemberinvite"
+	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"github.com/google/uuid"
 )
 
@@ -19,14 +21,17 @@ type playerUsecase struct {
 	teamMemberRepo   teammember.TeamMemberRepository
 	teamRepository   teamRepo.TeamRepository
 	teamInviteRepo   teammemberinvite.TeamMemberInviteRepository
+	code             code.CodeGenerater
+	logger           logger.Logger
 }
 
-func NewPlayerUsecase(player player.PlayerRepository, tmRepo teammember.TeamMemberRepository, teamRepo teamRepo.TeamRepository, tmr teammemberinvite.TeamMemberInviteRepository) PlayerUsecase {
+func NewPlayerUsecase(player player.PlayerRepository, tmRepo teammember.TeamMemberRepository, teamRepo teamRepo.TeamRepository, tmr teammemberinvite.TeamMemberInviteRepository, code code.CodeGenerater) PlayerUsecase {
 	return &playerUsecase{
 		playerRepository: player,
 		teamMemberRepo:   tmRepo,
 		teamRepository:   teamRepo,
 		teamInviteRepo:   tmr,
+		code:             code,
 	}
 }
 
@@ -62,15 +67,18 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 	teamcode, err := pu.teamRepository.GetTeamCode(ctx, input.TeamID)
 	if err != nil {
 		return nil, err
-	}  
+	}
 
-	
+	code, err := pu.code.GenerateCode()
+	if err != nil {
+		pu.logger.Error("failed generate code", "error", err, "method", "Add new player")
+	}
 
-	pu.teamInviteRepo.CreateInvitation(ctx,&entity.TeamInvite{
-		ID: uuid.New(), 
-		TeamID: input.TeamID, 
-		TeamCode: teamcode, 
-		Code: ,
+	pu.teamInviteRepo.CreateInvitation(ctx, &entity.TeamInvite{
+		ID:       uuid.New(),
+		TeamID:   input.TeamID,
+		TeamCode: teamcode,
+		Code:     code,
 	})
 
 	return nil, nil

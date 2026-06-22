@@ -4,14 +4,18 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	teamv1 "github.com/Junaidmdv/goalcircle-protos/team/v1"
+	userclient_pb "github.com/Junaidmdv/goalcircle-protos/user/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
 	team_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
+	teammember_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	team_handler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/team"
 	postgres "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/persistence/postgres"
+	teamsaga "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga/team"
+	userclientcon "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/userclient"
 	team_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
-
+	teammember_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teamowner"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"google.golang.org/grpc"
 )
 
@@ -42,12 +46,23 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	if err != nil {
 		return err
 	}
-	teamRepository := team_repo.NewTeamRepository(psqldb.DB)
-	teamUsecase := team_uc.NewTeamUsecase(teamRepository)
-	teamHandler := team_handler.NewTeamHandler(teamUsecase)
+	teamRepository := team_repo.NewTeamRepository(psqldb.DB, gs.logger)
+	TeamMemberRepository := teammember_repo.NewTeamMemberRepository(psqldb.DB, gs.logger)
+
+	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger)
+	teamMemberUc := teammember_uc.NewTeamOwnerUsecase(TeamMemberRepository)
+
+	userclient, err := userclientcon.NewUserGRPCClient(gs.Config.UserSrv, gs.logger)
+	if err != nil {
+		return err
+	}
+
+	userAuthpb := userclient_pb.NewAuthServiceClient(userclient.Conn)
+
+	teamSaga := teamsaga.NewTeamSagaMaker(teamUsecase, teamMemberUc, userAuthpb, gs.logger)
+	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut)
 	teamv1.RegisterTeamServiceServer(gs.Server, teamHandler)
 
-	
 	return nil
 }
 

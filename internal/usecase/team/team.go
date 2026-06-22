@@ -5,6 +5,7 @@ import (
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	team_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
+	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"github.com/google/uuid"
 )
@@ -17,18 +18,20 @@ type TeamUsecase interface {
 type teamUsecase struct {
 	teamRepo team_repo.TeamRepository
 	logger   logger.Logger
+	code     code.CodeGenerater
 }
 
-func NewTeamUsecase(teamrepo team_repo.TeamRepository, logger logger.Logger) TeamUsecase {
+func NewTeamUsecase(teamrepo team_repo.TeamRepository, logger logger.Logger, code code.CodeGenerater) TeamUsecase {
 	return &teamUsecase{
 		teamRepo: teamrepo,
 		logger:   logger,
+		code:     code,
 	}
 }
 
 func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*CreateTeamRes, error) {
 
-	code, err := GenerateCode(entity.TeamCodeLenght)
+	code, err := tu.code.GenerateCode()
 	if err != nil {
 		tu.logger.Error("Failed to generate code", "error", err, "method", "teamUsercase")
 	}
@@ -36,7 +39,7 @@ func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*Crea
 	res, err := tu.teamRepo.CreateTeam(ctx, &entity.Team{
 		ID:          uuid.New(),
 		Name:        dt.Name,
-		ShortName:   GenerateShortName(dt.Name),
+		ShortName:   tu.code.GenerateShortName(dt.Name),
 		City:        dt.City,
 		Description: dt.Description,
 		TeamCode:    code,
@@ -57,4 +60,3 @@ func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*Crea
 func (tu *teamUsecase) DeleteTeam(ctx context.Context, teamId uuid.UUID) error {
 	return tu.teamRepo.DeleteTeam(ctx, teamId)
 }
-

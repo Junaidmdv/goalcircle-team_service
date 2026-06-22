@@ -1,4 +1,4 @@
-package team
+package invitation
 
 import (
 	"crypto/rand"
@@ -6,9 +6,26 @@ import (
 	"strings"
 )
 
-const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+type CodeGenerater interface {
+	GenerateShortName(string) string
+	GenerateCode() (string, error)
+}
 
-func GenerateShortName(teamName string) string {
+type codeGenerater struct {
+	chars  string
+	length int32
+}
+
+func NewCodeGenerater(length int32) CodeGenerater {
+	chars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+
+	return &codeGenerater{
+		chars:  chars,
+		length: length,
+	}
+}
+
+func (cg *codeGenerater) GenerateShortName(teamName string) string {
 	words := strings.Fields(strings.TrimSpace(teamName))
 
 	switch len(words) {
@@ -40,17 +57,17 @@ func GenerateShortName(teamName string) string {
 	}
 }
 
-func GenerateCode(length int32) (string, error) {
+func (cg *codeGenerater) GenerateCode() (string, error) {
 
-	b := make([]byte, length)
+	b := make([]byte, cg.length)
 
 	for i := range b {
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(cg.chars))))
 		if err != nil {
 			return "", nil
 		}
 
-		b[i] = chars[n.Int64()]
+		b[i] = cg.chars[n.Int64()]
 	}
 	return string(b), nil
 }

@@ -1,0 +1,56 @@
+package team
+
+import (
+	"crypto/rand"
+	"math/big"
+	"strings"
+)
+
+const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+
+func GenerateShortName(teamName string) string {
+	words := strings.Fields(strings.TrimSpace(teamName))
+
+	switch len(words) {
+	case 0:
+		return ""
+	case 1:
+		name := strings.ToUpper(words[0])
+		if len(name) >= 3 {
+			return name[:3]
+		}
+		return name
+	default:
+		short := ""
+
+		for _, word := range words {
+			short += strings.ToUpper(string(word[0]))
+		}
+
+		if len(short) >= 3 {
+			return short[:3]
+		}
+
+		name := strings.ToUpper(strings.ReplaceAll(teamName, " ", ""))
+		for len(short) < 3 && len(name) > len(short) {
+			short += string(name[len(short)])
+		}
+
+		return short
+	}
+}
+
+func GenerateCode(length int32) (string, error) {
+
+	b := make([]byte, length)
+
+	for i := range b {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			return "", nil
+		}
+
+		b[i] = chars[n.Int64()]
+	}
+	return string(b), nil
+}

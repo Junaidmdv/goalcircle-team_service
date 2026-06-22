@@ -1,14 +1,17 @@
 package team
 
-type CreateTeamReq struct {
-}
+import "github.com/google/uuid"
 
 type CreateTeamRes struct {
-	UserId      string
+	TeamID    uuid.UUID `gorm:"primaryKey"`
+	Name      string
+	ShortName string
+	City      string
+	Code      string
+}
+
+type CreateTeamReq struct {
 	Name        string
 	City        string
 	Description string
 }
-
-
-

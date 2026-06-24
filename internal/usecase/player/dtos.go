@@ -3,6 +3,7 @@ package player
 import (
 	"time"
 
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/google/uuid"
 )
 
@@ -11,34 +12,67 @@ type AddPlayerReq struct {
 	FullName     string
 	DOB          time.Time
 	JerseyNumber int32
-	Postion      string
+	Postion      entity.PlayerPosition
 	Height       float32
 	Weight       float32
 }
 
 type AddPlayerRes struct {
+	ID           uuid.UUID
+	TeamMemberID uuid.UUID
+	FullName     string
+	JerseyNumber int32
+	Position     entity.PlayerPosition
+	Status       entity.PlayerStatus
 }
 
-type RemovePlayerReq struct {
+type UpdatPlayerStatusReq struct {
+	PlayerID uuid.UUID
+	Status   entity.PlayerStatus
 }
 
-type RemovePlayerRes struct {
+type UpdatePlayerStatusRes struct {
+	Success bool
 }
 
-type SuspendPlayerReq struct {
+type ListTeamPlayersReq struct {
+	TeamID       uuid.UUID
+	Page         int32
+	Limit        int32
+	PlayerStatus entity.PlayerStats
+	Position     entity.PlayerPosition
+	Search       string
 }
 
-type SuspendPlayerRes struct {
+type PlayerRes struct {
+	ID           uuid.UUID
+	TeamMemberID uuid.UUID
+	FullName     string
+	JerseyNumber int32
+	Position     entity.PlayerPosition
+	Status       entity.PlayerStatus
 }
 
-type GetTeamPlayersReq struct {
-}
-
-type GetTeamPlayersRes struct {
+type PaginateDetails struct {
+	TotalPage int32
+	Page      int32
+	Limit     int32
+	Total     int64
 }
 
 type GetPlayerReq struct {
+	PlayerID uuid.UUID
 }
 
 type GetPlayerRes struct {
+	PlayerID     uuid.UUID
+	TeamMemberID uuid.UUID
+	FullName     string
+	DateOfBirth  time.Time
+	JerseyNumber int32
+	Position     entity.PlayerPosition
+	Height       float32
+	Weight       float32
+	Status       entity.PlayerStatus
+	CreatedAt    time.Time
 }

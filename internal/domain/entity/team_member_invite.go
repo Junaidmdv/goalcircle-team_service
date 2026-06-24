@@ -11,7 +11,7 @@ type TeamInvite struct {
 	TeamID    uuid.UUID
 	TeamCode  string
 	Code      string
-	Role      string
+	Role      UserRole
 	IsUsed    bool
 	UsedBy    *uuid.UUID
 	ExpiresAt time.Time

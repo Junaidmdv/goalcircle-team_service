@@ -7,9 +7,11 @@ import (
 	teamv1 "github.com/Junaidmdv/goalcircle-protos/team/v1"
 	userclient_pb "github.com/Junaidmdv/goalcircle-protos/user/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	team_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
 	teammember_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	team_handler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/team"
+	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
 	postgres "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/persistence/postgres"
 	teamsaga "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga/team"
 	userclientcon "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/userclient"
@@ -45,11 +47,13 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	psqldb, err := postgres.NewPostgresDB(gs.Config.Postgres)
 	if err != nil {
 		return err
-	}
+	} 
+
+	codeGenerater:=code.NewCodeGenerater(entity.CodeLength)
 	teamRepository := team_repo.NewTeamRepository(psqldb.DB, gs.logger)
 	TeamMemberRepository := teammember_repo.NewTeamMemberRepository(psqldb.DB, gs.logger)
 
-	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger)
+	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger,codeGenerater)
 	teamMemberUc := teammember_uc.NewTeamOwnerUsecase(TeamMemberRepository)
 
 	userclient, err := userclientcon.NewUserGRPCClient(gs.Config.UserSrv, gs.logger)

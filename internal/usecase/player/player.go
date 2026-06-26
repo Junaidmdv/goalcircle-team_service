@@ -9,6 +9,7 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"github.com/google/uuid"
 )
@@ -17,6 +18,7 @@ type PlayerUsecase interface {
 	AddNewPlayer(context.Context, *AddPlayerReq) (*AddPlayerRes, error)
 	UpdatePlayerStatus(context.Context, *UpdatPlayerStatusReq) (*UpdatePlayerStatusRes, error)
 	ListTeamPlayers(context.Context, *ListTeamPlayersReq) ([]PlayerRes, *PaginateDetails, error)
+	GetPlayer(context.Context, *GetPlayerReq) (*GetPlayerRes, error)
 }
 
 type playerUsecase struct {
@@ -45,9 +47,15 @@ func NewPlayerUsecase(player player.PlayerRepository,
 
 func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) (*AddPlayerRes, error) {
 
+	teamID, err := uuid.Parse(input.TeamID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid player id")
+
+	}
+
 	teamMember, err := pu.teamMemberRepo.AddTeamMember(ctx, &entity.TeamMember{
 		ID:       uuid.New(),
-		TeamID:   input.TeamID,
+		TeamID:   teamID,
 		FullName: input.FullName,
 		Role:     entity.PLAYER,
 	})
@@ -85,7 +93,13 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 
 func (pu *playerUsecase) UpdatePlayerStatus(ctx context.Context, input *UpdatPlayerStatusReq) (*UpdatePlayerStatusRes, error) {
 
-	if err := pu.playerRepository.UpdatePlayerStatus(ctx, &input.PlayerID, &input.Status); err != nil {
+	playerID, err := uuid.Parse(input.PlayerID)
+
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid player id")
+	}
+
+	if err := pu.playerRepository.UpdatePlayerStatus(ctx, &playerID, &input.Status); err != nil {
 		return nil, err
 	}
 	return &UpdatePlayerStatusRes{
@@ -94,6 +108,12 @@ func (pu *playerUsecase) UpdatePlayerStatus(ctx context.Context, input *UpdatPla
 }
 
 func (pu *playerUsecase) ListTeamPlayers(ctx context.Context, input *ListTeamPlayersReq) ([]PlayerRes, *PaginateDetails, error) {
+
+	teamId, err := uuid.Parse(input.TeamID)
+	if err != nil {
+		return nil, nil, apperror.NewBadRequestError("invalid player id")
+
+	}
 	if input.Page <= 0 {
 		input.Page = 1
 	}
@@ -106,7 +126,7 @@ func (pu *playerUsecase) ListTeamPlayers(ctx context.Context, input *ListTeamPla
 	}
 
 	players, total, err := pu.playerRepository.GetTeamPlayers(ctx, &player.ListUserReq{
-		TeamID:       input.TeamID,
+		TeamID:       teamId,
 		Page:         input.Page,
 		Limit:        input.Limit,
 		PlayerStatus: input.PlayerStatus,
@@ -145,7 +165,13 @@ func (pu *playerUsecase) ListTeamPlayers(ctx context.Context, input *ListTeamPla
 
 func (pu *playerUsecase) GetPlayer(ctx context.Context, input *GetPlayerReq) (*GetPlayerRes, error) {
 
-	player, err := pu.playerRepository.GetPlayer(ctx, &input.PlayerID)
+	playerID, err := uuid.Parse(input.PlayerID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid player id")
+
+	}
+
+	player, err := pu.playerRepository.GetPlayer(ctx, &playerID)
 	if err != nil {
 		return nil, err
 	}

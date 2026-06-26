@@ -27,3 +27,9 @@ func passwordValidation(fl validator.FieldLevel) bool {
 
 	return hasUpper && hasLower && hasNumber && hasSpecial && hasMinLen
 }
+
+func playerPositionvalidater(fl validator.FieldLevel) bool {
+	return fl.Field().String() != "unspecified"
+}
+
+

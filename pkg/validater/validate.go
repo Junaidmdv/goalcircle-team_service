@@ -1,6 +1,7 @@
 package validater
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -26,7 +27,8 @@ func NewValidater() (*Validater, error) {
 	}
 	validater.RegisterValidation("phone", phoneValidation)
 	validater.RegisterValidation("password", passwordValidation)
-	
+	validater.RegisterValidation("player-position", playerPositionvalidater)
+
 	validater.RegisterTagNameFunc(func(field reflect.StructField) string {
 		name := strings.SplitN(field.Tag.Get("json"), ",", 2)[0]
 		if name != "-" {
@@ -52,6 +54,15 @@ func NewValidater() (*Validater, error) {
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
 			t, _ := ut.T("phone", fe.Field())
+			return t
+		},
+	)
+
+	validater.RegisterTranslation("player-position", engtrans, func(ut ut.Translator) error {
+		return ut.Add("player-position", "{0} {1} is not valid player position", true)
+	},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T("player-position", fe.Field(), fmt.Sprintf("%v", fe.Value()))
 			return t
 		},
 	)
@@ -82,5 +93,3 @@ func (v *Validater) Validation(input interface{}) validator.ValidationErrorsTran
 	translated := err.(validator.ValidationErrors).Translate(v.ut)
 	return translated
 }
-
-

@@ -8,7 +8,7 @@ import (
 )
 
 type AddPlayerReq struct {
-	TeamID       uuid.UUID
+	TeamID       string 
 	FullName     string
 	DOB          time.Time
 	JerseyNumber int32
@@ -27,7 +27,7 @@ type AddPlayerRes struct {
 }
 
 type UpdatPlayerStatusReq struct {
-	PlayerID uuid.UUID
+	PlayerID string
 	Status   entity.PlayerStatus
 }
 
@@ -36,7 +36,7 @@ type UpdatePlayerStatusRes struct {
 }
 
 type ListTeamPlayersReq struct {
-	TeamID       uuid.UUID
+	TeamID       string
 	Page         int32
 	Limit        int32
 	PlayerStatus entity.PlayerStats
@@ -61,7 +61,7 @@ type PaginateDetails struct {
 }
 
 type GetPlayerReq struct {
-	PlayerID uuid.UUID
+	PlayerID string
 }
 
 type GetPlayerRes struct {

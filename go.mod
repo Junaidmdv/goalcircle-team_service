@@ -3,13 +3,14 @@ module github.com/Junaidmdv/goalcircle-team_service
 go 1.25.1
 
 require (
-	github.com/Junaidmdv/goalcircle-protos v0.0.0-20260621012005-b1cece9a777e
+	github.com/Junaidmdv/goalcircle-protos v0.0.0-20260626103855-a6083b7c4568
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	go.uber.org/zap v1.28.0
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 	gorm.io/driver/postgres v1.6.0
@@ -31,5 +32,4 @@ require (
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
 )

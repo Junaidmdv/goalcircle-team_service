@@ -31,7 +31,7 @@ func NewTeamUsecase(teamrepo team_repo.TeamRepository, logger logger.Logger, cod
 
 func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*CreateTeamRes, error) {
 
-	code, err := tu.code.GenerateCode()
+	code, err := tu.code.GenerateCode("TM")
 	if err != nil {
 		tu.logger.Error("Failed to generate code", "error", err, "method", "teamUsercase")
 	}

@@ -8,7 +8,7 @@ import (
 
 type CodeGenerater interface {
 	GenerateShortName(string) string
-	GenerateCode() (string, error)
+	GenerateCode(string) (string, error)
 }
 
 type codeGenerater struct {
@@ -57,7 +57,7 @@ func (cg *codeGenerater) GenerateShortName(teamName string) string {
 	}
 }
 
-func (cg *codeGenerater) GenerateCode() (string, error) {
+func (cg *codeGenerater) GenerateCode(role string) (string, error) {
 
 	b := make([]byte, cg.length)
 
@@ -69,5 +69,7 @@ func (cg *codeGenerater) GenerateCode() (string, error) {
 
 		b[i] = cg.chars[n.Int64()]
 	}
-	return string(b), nil
+
+	code := cg.GenerateShortName(role) + string(b)
+	return code, nil
 }

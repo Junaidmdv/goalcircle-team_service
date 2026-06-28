@@ -6,7 +6,6 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/player"
 	teamRepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
-	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
@@ -25,7 +24,6 @@ type playerUsecase struct {
 	playerRepository player.PlayerRepository
 	teamMemberRepo   teammember.TeamMemberRepository
 	teamRepository   teamRepo.TeamRepository
-	teamInviteRepo   teaminvite.TeamInviteRepository
 	code             code.CodeGenerater
 	logger           logger.Logger
 }
@@ -33,14 +31,13 @@ type playerUsecase struct {
 func NewPlayerUsecase(player player.PlayerRepository,
 	tmRepo teammember.TeamMemberRepository,
 	teamRepo teamRepo.TeamRepository,
-	tmr teaminvite.TeamInviteRepository,
+
 	code code.CodeGenerater) PlayerUsecase {
 
 	return &playerUsecase{
 		playerRepository: player,
 		teamMemberRepo:   tmRepo,
 		teamRepository:   teamRepo,
-		teamInviteRepo:   tmr,
 		code:             code,
 	}
 }

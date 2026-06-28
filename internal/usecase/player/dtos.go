@@ -76,3 +76,6 @@ type GetPlayerRes struct {
 	Status       entity.PlayerStatus
 	CreatedAt    time.Time
 }
+
+
+

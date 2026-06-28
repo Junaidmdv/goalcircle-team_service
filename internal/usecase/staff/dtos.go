@@ -1,4 +1,4 @@
-package teamowner
+package staff
 
 import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
@@ -20,11 +20,7 @@ type AddTeamOwnerRes struct {
 	Role         entity.UserRole
 }
 
-type AddPlayerRes struct {
-}
 
-type AddPlayerReq struct {
-}
 
 type AddStaffReq struct {
 }

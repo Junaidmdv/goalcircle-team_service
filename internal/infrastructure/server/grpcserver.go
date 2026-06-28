@@ -15,8 +15,8 @@ import (
 	postgres "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/persistence/postgres"
 	teamsaga "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga/team"
 	userclientcon "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/userclient"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
 	team_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
-	teammember_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teamowner"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"google.golang.org/grpc"
 )
@@ -47,14 +47,15 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	psqldb, err := postgres.NewPostgresDB(gs.Config.Postgres)
 	if err != nil {
 		return err
-	} 
+	}
 
-	codeGenerater:=code.NewCodeGenerater(entity.CodeLength)
+	codeGenerater := code.NewCodeGenerater(entity.CodeLength)
 	teamRepository := team_repo.NewTeamRepository(psqldb.DB, gs.logger)
 	TeamMemberRepository := teammember_repo.NewTeamMemberRepository(psqldb.DB, gs.logger)
 
-	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger,codeGenerater)
-	teamMemberUc := teammember_uc.NewTeamOwnerUsecase(TeamMemberRepository)
+	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater)
+	// teamMemberUc := teammember_uc.NewTeamOwnerUsecase(TeamMemberRepository)
+	teamStaffUc := staff.NewTeamStaffUsecase(TeamMemberRepository)
 
 	userclient, err := userclientcon.NewUserGRPCClient(gs.Config.UserSrv, gs.logger)
 	if err != nil {
@@ -63,7 +64,7 @@ func (gs *GRPCServer) BootstrapSetup() error {
 
 	userAuthpb := userclient_pb.NewAuthServiceClient(userclient.Conn)
 
-	teamSaga := teamsaga.NewTeamSagaMaker(teamUsecase, teamMemberUc, userAuthpb, gs.logger)
+	teamSaga := teamsaga.NewTeamSagaMaker(teamUsecase, teamStaffUc, userAuthpb, gs.logger)
 	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut)
 	teamv1.RegisterTeamServiceServer(gs.Server, teamHandler)
 

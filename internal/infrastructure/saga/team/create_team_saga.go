@@ -6,8 +6,8 @@ import (
 	usrclient "github.com/Junaidmdv/goalcircle-protos/user/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga"
+	staff_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
-	"github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teamowner"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 )
 
@@ -16,18 +16,18 @@ type TeamSagaMaker interface {
 }
 
 type teamSaga struct {
-	teamUsecase      team.TeamUsecase
-	teamOwnerUsecase teamowner.TeamOwnerUsecase
-	userclient       usrclient.AuthServiceClient
-	logger           logger.Logger
+	teamUsecase  team.TeamUsecase
+	staffUsecase staff_uc.StaffUsecase
+	userclient   usrclient.AuthServiceClient
+	logger       logger.Logger
 }
 
-func NewTeamSagaMaker(teamuc team.TeamUsecase, teamMemberUsecase teamowner.TeamOwnerUsecase, usrclient usrclient.AuthServiceClient, logger logger.Logger) TeamSagaMaker {
+func NewTeamSagaMaker(teamuc team.TeamUsecase, staffuc staff_uc.StaffUsecase, usrclient usrclient.AuthServiceClient, logger logger.Logger) TeamSagaMaker {
 	return &teamSaga{
-		teamUsecase:      teamuc,
-		teamOwnerUsecase: teamMemberUsecase,
-		userclient:       usrclient,
-		logger:           logger,
+		teamUsecase:  teamuc,
+		staffUsecase: staffuc,
+		userclient:   usrclient,
+		logger:       logger,
 	}
 }
 
@@ -135,7 +135,7 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 				// res, err := ts.TeamOwnerUsecase.AddTeamMember(
 				// })
 
-				res, err := ts.teamOwnerUsecase.AddTeamOwner(ctx, &teamowner.AddTeamOwnerReq{
+				res, err := ts.staffUsecase.AddTeamOwner(ctx, &staff_uc.AddTeamOwnerReq{
 					TeamID:   req.TeamRes.ID,
 					UserId:   req.UserID,
 					FullName: req.FullName,
@@ -160,7 +160,7 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 			Compensate: func(ctx context.Context, sagaState interface{}) error {
 				req, _ := sagaState.(*TeamSagaState)
 
-				if err := ts.teamOwnerUsecase.DeleteTeamOwner(ctx, &req.TeamMemberRes.TeamMemberID); err != nil {
+				if err := ts.staffUsecase.DeleteStaff(ctx, &req.TeamMemberRes.TeamMemberID); err != nil {
 					return err
 				}
 				return nil

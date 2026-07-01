@@ -6,13 +6,14 @@ import (
 )
 
 var errTypeToGRPCCode = map[ErrorType]codes.Code{
-	ErrTypeUnknown:        codes.Unknown,
-	ErrorTypeNotFound:     codes.NotFound,
-	ErrorTypeInternal:     codes.Internal,
-	ErrorTypeConflict:     codes.AlreadyExists,
-	ErrorInvalidArguement: codes.InvalidArgument,
-	ErrorDeadlineExceed:   codes.DeadlineExceeded,
-	ErrorUnAuthenticated:  codes.Unauthenticated,
+	ErrTypeUnknown:          codes.Unknown,
+	ErrorTypeNotFound:       codes.NotFound,
+	ErrorTypeInternal:       codes.Internal,
+	ErrorTypeConflict:       codes.AlreadyExists,
+	ErrorInvalidArguement:   codes.InvalidArgument,
+	ErrorDeadlineExceed:     codes.DeadlineExceeded,
+	ErrorUnAuthenticated:    codes.Unauthenticated,
+	ErrorFailedPrecondition: codes.FailedPrecondition,
 }
 
 func GRPCStatus(err error) error {

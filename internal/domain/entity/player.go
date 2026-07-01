@@ -41,15 +41,15 @@ const (
 )
 
 type Player struct {
-	ID               uuid.UUID `gorm:"type:uuid;primaryKey"`
-	TeamMemberID     uuid.UUID `gorm:"type:uuid;uniqueIndex"`
-	FullName         string
-	DateOfBirth      time.Time
-	JerseyNumber     int32
-	Position PlayerPosition
-	Height           float32
-	Weight           float32
-	Status           PlayerStatus
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID           uuid.UUID `gorm:"type:uuid;primaryKey"`
+	TeamMemberID uuid.UUID `gorm:"type:uuid;uniqueIndex"`
+	FullName     string
+	DateOfBirth  time.Time
+	JerseyNumber int32
+	Position     PlayerPosition
+	Height       float32
+	Weight       float32
+	Status       PlayerStatus
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }

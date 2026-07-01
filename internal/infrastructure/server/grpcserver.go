@@ -8,7 +8,9 @@ import (
 	userclient_pb "github.com/Junaidmdv/goalcircle-protos/user/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
+	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
 	team_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
 	teammember_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	team_handler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/team"
 	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
@@ -17,6 +19,7 @@ import (
 	userclientcon "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/userclient"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
 	team_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
+	teammemberuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teammember"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"google.golang.org/grpc"
 )
@@ -52,10 +55,14 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	codeGenerater := code.NewCodeGenerater(entity.CodeLength)
 	teamRepository := team_repo.NewTeamRepository(psqldb.DB, gs.logger)
 	TeamMemberRepository := teammember_repo.NewTeamMemberRepository(psqldb.DB, gs.logger)
+	staffRepository := staffrepo.NewStaffRepository(psqldb.DB, gs.logger)
 
 	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater)
 	// teamMemberUc := teammember_uc.NewTeamOwnerUsecase(TeamMemberRepository)
-	teamStaffUc := staff.NewTeamStaffUsecase(TeamMemberRepository)
+	teamStaffUc := staff.NewTeamStaffUsecase(TeamMemberRepository, staffRepository)
+	teamInviteRepo := teaminvite.NewTeamMemberInviteRepository(psqldb.DB, gs.logger)
+
+	teamMemberUsecase := teammemberuc.NewTeamMemberUsecase(TeamMemberRepository, teamInviteRepo, gs.logger)
 
 	userclient, err := userclientcon.NewUserGRPCClient(gs.Config.UserSrv, gs.logger)
 	if err != nil {
@@ -64,7 +71,7 @@ func (gs *GRPCServer) BootstrapSetup() error {
 
 	userAuthpb := userclient_pb.NewAuthServiceClient(userclient.Conn)
 
-	teamSaga := teamsaga.NewTeamSagaMaker(teamUsecase, teamStaffUc, userAuthpb, gs.logger)
+	teamSaga := teamsaga.NewTeamSagaMaker(teamUsecase, teamMemberUsecase, userAuthpb, gs.logger)
 	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut)
 	teamv1.RegisterTeamServiceServer(gs.Server, teamHandler)
 

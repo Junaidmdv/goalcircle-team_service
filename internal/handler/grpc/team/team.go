@@ -13,15 +13,16 @@ import (
 )
 
 type TeamHandler struct {
-	tu team_uc.TeamUsecase
+	teamUsecase team_uc.TeamUsecase
 	pb.UnimplementedTeamServiceServer
 	teamSaga teamsaga.TeamSagaMaker
 	timeOut  time.Duration
+	time
 }
 
 func NewTeamHandler(tu team_uc.TeamUsecase, teamSaga teamsaga.TeamSagaMaker, timeout time.Duration) *TeamHandler {
 	return &TeamHandler{
-		tu:       tu,
+		teamUsecase:       tu,
 		teamSaga: teamSaga,
 		timeOut:  timeout,
 	}
@@ -34,7 +35,7 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 
 	res, err := th.teamSaga.CreateTeamSaga(context, &teamsaga.TeamSagaState{
 		UserID:       req.Owner.UserId,
-		Role:         entity.OWNER,
+		Role:         entity.TEAM,
 		RefreshToken: req.RefreshToken,
 		TeamName:     req.Name,
 		City:         req.City,
@@ -72,5 +73,11 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 }
 
 func (th *TeamHandler) UpdateTeamDetails(ctx context.Context, req *pb.UpdateTeamReq) (*pb.UpdateTeamRes, error) {
+
+	context, cancel := context.WithTimeout(ctx, th.timeOut)
+	defer cancel()
+
+	th.teamUsecase.Update
+
 	return nil, nil
 }

@@ -60,3 +60,12 @@ func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*Crea
 func (tu *teamUsecase) DeleteTeam(ctx context.Context, teamId uuid.UUID) error {
 	return tu.teamRepo.DeleteTeam(ctx, teamId)
 }
+
+
+func(tu *teamUsecase)UpdateTeamDetails(ctx context.Context,req *UpdateTeamDetailsReq)(*UpdateTeamDetailsRes,error){
+    
+}  
+
+
+
+

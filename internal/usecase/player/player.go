@@ -54,7 +54,7 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 		ID:       uuid.New(),
 		TeamID:   teamID,
 		FullName: input.FullName,
-		Role:     entity.PLAYER,
+		Role:     entity.TeamMemberRolePlayer,
 	})
 
 	if err != nil {

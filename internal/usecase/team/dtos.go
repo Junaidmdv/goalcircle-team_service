@@ -15,3 +15,18 @@ type CreateTeamReq struct {
 	City        string
 	Description string
 }
+
+type UpdateTeamDetailsReq struct {
+	TeamID       string
+	TeamMemberID string
+	Name         string
+	City         string
+	Description  string
+}
+
+type UpdateTeamDetailsRes struct {
+	TeamID      string
+	Name        string
+	City        string
+	Description string
+}

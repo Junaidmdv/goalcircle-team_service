@@ -1,35 +1,37 @@
-package staff
+package staffuc
 
 import (
+	"time"
+
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/google/uuid"
 )
 
-type AddTeamOwnerReq struct {
-	TeamID   uuid.UUID
-	UserId   string
-	FullName string
-	Role     entity.UserRole
-}
-
-type AddTeamOwnerRes struct {
-	TeamMemberID uuid.UUID `gorm:"primaryKey"`
-	TeamID       uuid.UUID
-	UserID       string
-	FullName     string
-	Role         entity.UserRole
-}
-
-
-
 type AddStaffReq struct {
+	UserID      string
+	TeamID      string
+	FullName    string
+	Designation entity.StaffDesignation
+	DOB         time.Time
+	Role        entity.TeamMemberRole
 }
 
 type AddStaffRes struct {
+	StaffID      uuid.UUID
+	TeamMemberID uuid.UUID
+	FullName     string
+	Age          int32
+	Designation  entity.StaffDesignation
 }
 
-type AddManagerReq struct {
+type ChangeStaffStatusRes struct {
 }
 
-type AddManagerRes struct {
+type ChangeStaffStatusReq struct {
+}
+
+type ListTeamStaffReq struct {
+}
+
+type ListTeamStaffRes struct {
 }

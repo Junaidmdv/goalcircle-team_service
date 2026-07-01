@@ -12,6 +12,7 @@ import (
 )
 
 type TeamInviteUsecase interface {
+	CreateInvitation(context.Context, *TeamInviteReq) (*TeamInviteRes, error)
 }
 
 type teamInviteUsecase struct {
@@ -25,7 +26,7 @@ func NewTeamInviteUsecase(tm tminviterepo.TeamInviteRepository) TeamInviteUsecas
 	}
 }
 
-func (ti *teamInviteUsecase) GenerateInvitation(ctx context.Context, req TeamInviteReq) (*TeamInviteRes, error) {
+func (ti *teamInviteUsecase) CreateInvitation(ctx context.Context, req *TeamInviteReq) (*TeamInviteRes, error) {
 	teamMemberID, err := uuid.Parse(req.TeamMemberID)
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid team member id")
@@ -57,7 +58,7 @@ func (ti *teamInviteUsecase) GenerateInvitation(ctx context.Context, req TeamInv
 	}
 	return &TeamInviteRes{
 		TeamMemberId: invite.TeamMemberID,
-		code:         invite.Code,
+		Code:         invite.Code,
 		ExpiresAt:    invite.ExpiresAt,
 		CreatedAt:    invite.CreatedAt,
 	}, nil

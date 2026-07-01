@@ -57,3 +57,7 @@ func (tr *teamRepository) GetTeamCode(ctx context.Context, teamid uuid.UUID) (st
 	}
 	return code, nil
 }
+
+
+
+func(tr *teamRepository)UpdateTeamDetails(ctx context.Context,teamID uuid.UUID,)

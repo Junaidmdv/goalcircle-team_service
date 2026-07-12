@@ -28,6 +28,7 @@ func (th *TeamInviteHandler) CreateInvitation(ctx context.Context, req *pb.Creat
 	defer cancel()
 
 	res, err := th.teamInviteUsecase.CreateInvitation(context, &teaminvite.TeamInviteReq{
+		UserID:       req.UserId,
 		TeamMemberID: req.TeamMemberId,
 		Role:         req.Role,
 	})
@@ -42,3 +43,6 @@ func (th *TeamInviteHandler) CreateInvitation(ctx context.Context, req *pb.Creat
 		CreatedAt: timestamppb.New(res.CreatedAt),
 	}, nil
 }
+
+
+

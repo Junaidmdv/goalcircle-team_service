@@ -22,6 +22,15 @@ type PlayerHandler struct {
 	pb.UnimplementedPlayerServiceServer
 }
 
+func NewPlayerHandler(puc player.PlayerUsecase, logger logger.Logger, timeout *time.Duration, validater *validater.Validater) *PlayerHandler {
+	return &PlayerHandler{
+		playerUc:  puc,
+		logger:    logger,
+		timeout:   timeout,
+		validater: validater,
+	}
+}
+
 func (ph *PlayerHandler) AddNewPlayer(ctx context.Context, input *pb.AddPlayerReq) (*pb.AddPlayerRes, error) {
 
 	context, cancel := context.WithTimeout(ctx, *ph.timeout)

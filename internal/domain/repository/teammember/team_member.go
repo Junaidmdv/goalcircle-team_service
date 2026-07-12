@@ -2,6 +2,7 @@ package teammember
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
@@ -14,6 +15,8 @@ type TeamMemberRepository interface {
 	AddTeamMember(context.Context, *entity.TeamMember) (*entity.TeamMember, error)
 	RemoveTeamMember(context.Context, *uuid.UUID) error
 	UpdateUserID(context.Context, *uuid.UUID, string) error
+	GetTeamMemeberRole(context.Context, uuid.UUID, uuid.UUID) (entity.TeamMemberRole, error)
+	GetStaffDesignation(context.Context, string) (entity.StaffDesignation, error)
 }
 
 type teamMemberRepository struct {
@@ -51,4 +54,52 @@ func (tm *teamMemberRepository) UpdateUserID(ctx context.Context, teamMemberID *
 		return apperror.NewInternalError(apperror.InternalErrorMsg, err)
 	}
 	return nil
+}
+
+func (tm *teamMemberRepository) GetTeamMemeberRole(ctx context.Context, teamID, teamMemberID uuid.UUID) (entity.TeamMemberRole, error) {
+	var role entity.TeamMemberRole
+	result := tm.db.WithContext(ctx).
+		Model(&entity.TeamMember{}).
+		Select("role").
+		Where("team_id = ? AND id = ?", teamID, teamMemberID).
+		Scan(&role)
+
+	if result.Error != nil {
+		tm.logger.Error("database error", "error", result.Error)
+		return "", apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return "", apperror.NewNotFoundError("team member not found")
+	}
+
+	return role, nil
+}
+
+func (tm *teamMemberRepository) GetStaffDesignation(
+	ctx context.Context,
+	userID string,
+) (entity.StaffDesignation, error) {
+
+	var result struct {
+		Designation entity.StaffDesignation
+	}
+
+	err := tm.db.WithContext(ctx).
+		Table("team_members").
+		Select("staff.designation").
+		Joins("JOIN staff ON staff.team_member_id = team_members.id").
+		Where("team_members.user_id = ?", userID).
+		Take(&result).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", apperror.NewNotFoundError("staff not found")
+		}
+
+		tm.logger.Error("database error", "error", err)
+		return "", apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+
+	return result.Designation, nil
 }

@@ -8,6 +8,7 @@ import (
 	userclient_pb "github.com/Junaidmdv/goalcircle-protos/user/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/player"
 	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
 	team_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
@@ -17,10 +18,19 @@ import (
 	postgres "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/persistence/postgres"
 	teamsaga "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga/team"
 	userclientcon "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/userclient"
-	"github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
+	playeruc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/player"
+	staffuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
 	team_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
+	inviteuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teaminvite"
 	teammemberuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teammember"
+
+	playerHandler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/player" 
+	staffHandler"github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/staff" 
+   inviteHandler"github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/invite" 
+
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/validater"
+
 	"google.golang.org/grpc"
 )
 
@@ -51,18 +61,22 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	if err != nil {
 		return err
 	}
-
+	validater, err := validater.NewValidater()
+	if err != nil {
+		return err
+	}
 	codeGenerater := code.NewCodeGenerater(entity.CodeLength)
 	teamRepository := team_repo.NewTeamRepository(psqldb.DB, gs.logger)
 	TeamMemberRepository := teammember_repo.NewTeamMemberRepository(psqldb.DB, gs.logger)
 	staffRepository := staffrepo.NewStaffRepository(psqldb.DB, gs.logger)
-
-	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater)
-	// teamMemberUc := teammember_uc.NewTeamOwnerUsecase(TeamMemberRepository)
-	teamStaffUc := staff.NewTeamStaffUsecase(TeamMemberRepository, staffRepository)
+	playerRepo := player.NewPlayerRepository(psqldb.DB, gs.logger)
 	teamInviteRepo := teaminvite.NewTeamMemberInviteRepository(psqldb.DB, gs.logger)
 
-	teamMemberUsecase := teammemberuc.NewTeamMemberUsecase(TeamMemberRepository, teamInviteRepo, gs.logger)
+	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater, TeamMemberRepository, playerRepo)
+	teamMemberUc := teammemberuc.NewTeamMemberUsecase(TeamMemberRepository, teamInviteRepo, gs.logger)
+	teamStaffUc := staffuc.NewTeamStaffUsecase(TeamMemberRepository, staffRepository)
+	playerUc := playeruc.NewPlayerUsecase(playerRepo, TeamMemberRepository, teamRepository, codeGenerater)
+	teaminviteUc := inviteuc.NewTeamInviteUsecase(teamInviteRepo)
 
 	userclient, err := userclientcon.NewUserGRPCClient(gs.Config.UserSrv, gs.logger)
 	if err != nil {
@@ -71,9 +85,18 @@ func (gs *GRPCServer) BootstrapSetup() error {
 
 	userAuthpb := userclient_pb.NewAuthServiceClient(userclient.Conn)
 
-	teamSaga := teamsaga.NewTeamSagaMaker(teamUsecase, teamMemberUsecase, userAuthpb, gs.logger)
+	teamSaga := teamsaga.NewTeamSagaMaker(teamUsecase, teamMemberUc, userAuthpb, gs.logger)
 	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut)
-	teamv1.RegisterTeamServiceServer(gs.Server, teamHandler)
+	playerHandler:=playerHandler.NewPlayerHandler(playerUc, gs.logger,&gs.Config.Server.TimeOut,validater) 
+	staffHandler:=staffHandler.NewStaffHandler(teamStaffUc,gs.Config.Server.TimeOut) 
+	inviteHandler.NewTeamInviteHandler(teaminviteUc,gs.Config.Server.TimeOut) 
+
+
+	teamv1.RegisterTeamServiceServer(gs.Server, teamHandler) 
+	teamv1.RegisterPlayerServiceServer(gs.Server,playerHandler)  
+	teamv1.RegisterStaffServiceServer(gs.Server,staffHandler) 
+
+
 
 	return nil
 }

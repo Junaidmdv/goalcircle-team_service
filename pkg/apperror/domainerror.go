@@ -14,6 +14,7 @@ const (
 	ErrorUnAuthenticated
 	ErrorBadRequest
 	ErrorFailedPrecondition
+	ErrorPermissionDenied
 )
 
 type DomainError struct {
@@ -76,6 +77,20 @@ func NewBadRequestError(msg string) *DomainError {
 func NewFailedPreCondition(msg string) *DomainError {
 	return &DomainError{
 		Type:    ErrorFailedPrecondition,
+		Message: msg,
+	}
+}
+
+func NewPermissionDenied(msg string) *DomainError {
+	return &DomainError{
+		Type:    ErrorPermissionDenied,
+		Message: msg,
+	}
+}
+
+func NewInvalidArgumentError(msg string) *DomainError {
+	return &DomainError{
+		Type:    ErrorInvalidArguement,
 		Message: msg,
 	}
 }

@@ -40,6 +40,7 @@ type Staff struct {
 	Status       StaffStatus
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	
 }
 
 

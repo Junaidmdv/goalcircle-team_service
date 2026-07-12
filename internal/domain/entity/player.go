@@ -12,7 +12,7 @@ const (
 	PlayerStatusActive              PlayerStatus = "ACTIVE"
 	PlayerStatusInjured             PlayerStatus = "INJURED"
 	PlayerStatusSuspended           PlayerStatus = "SUSPENDED"
-	PlayerStatusArchived            PlayerStatus = "ARCHIVED"
+	PlayerStatusReleased            PlayerStatus = "RELEASED"
 	PlayerStatusPendingActionvation PlayerStatus = "PENDING_ACTIVATION"
 )
 
@@ -52,4 +52,5 @@ type Player struct {
 	Status       PlayerStatus
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	PlayerStats  PlayerStats `gorm:"foreignKey:PlayerID"`
 }

@@ -7,13 +7,14 @@ import (
 )
 
 type TeamInvite struct {
-	ID           uuid.UUID
-	TeamMemberID uuid.UUID
-	TeamCode     string
-	Code         string
-	Role         string
-	IsUsed       bool
-	UserID       string
-	ExpiresAt    time.Time
-	CreatedAt    time.Time
+	ID             uuid.UUID
+	TeamMemberID   uuid.UUID
+	TeamCode       string
+	Code           string
+	TeamMemberType TeamMemberRole
+	Role           string
+	IsUsed         bool
+	UserID         string
+	ExpiresAt      time.Time
+	CreatedAt      time.Time
 }

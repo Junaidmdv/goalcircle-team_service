@@ -30,6 +30,6 @@ type Team struct {
 	CaptainID       uuid.UUID
 	ViceCaptainID   uuid.UUID
 	CreatedAt       time.Time
+	TeamMember      []TeamMember `gorm:"foreignKey:TeamID"`
+	TeamStats       TeamStats    `gorm:"foreignKey:TeamID"`
 }
-
-

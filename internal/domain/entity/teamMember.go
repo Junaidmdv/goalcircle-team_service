@@ -24,10 +24,13 @@ const (
 )
 
 type TeamMember struct {
-	ID        uuid.UUID `gorm:"primaryKey"`
-	TeamID    uuid.UUID
-	UserID    string
-	FullName  string
-	Role      TeamMemberRole
-	CreatedAt time.Time
+	ID         uuid.UUID `gorm:"primaryKey"`
+	TeamID     uuid.UUID
+	UserID     string `gorm:"index:user_index,unique"`
+	FullName   string
+	Role       TeamMemberRole
+	CreatedAt  time.Time
+	Player     Player     `gorm:"foreignKey:TeamMemberID"`
+	Staff      Staff      `gorm:"foreignKey:TeamMemberID"`
+	TeamInvite TeamInvite `gorm:"foreignKey:TeamMemberID"`
 }

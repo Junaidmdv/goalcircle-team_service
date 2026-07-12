@@ -21,6 +21,7 @@ const (
 	StaffDesignationOther            StaffDesignation = "OTHER"
 )
 
+
 type StaffStatus string
 
 const (
@@ -40,3 +41,5 @@ type Staff struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
+
+

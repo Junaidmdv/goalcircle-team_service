@@ -24,10 +24,10 @@ type teamSaga struct {
 
 func NewTeamSagaMaker(teamuc team.TeamUsecase, tmuc teammemberuc.TeamMemberUsecase, usrclient usrclient.AuthServiceClient, logger logger.Logger) TeamSagaMaker {
 	return &teamSaga{
-		teamUsecase: teamuc,
-
-		userclient: usrclient,
-		logger:     logger,
+		teamUsecase:  teamuc,
+		teamMemberUc: tmuc,
+		userclient:   usrclient,
+		logger:       logger,
 	}
 }
 
@@ -91,14 +91,10 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 
 				req, _ := sagaState.(*TeamSagaState)
 
-				// res, err := ts.TeamOwnerUsecase.AddTeamMember(
-				// })
-
 				res, err := ts.teamMemberUc.AddTeamOwner(ctx, &teammemberuc.AddTeamOwnerReq{
 					TeamID:   req.TeamRes.ID,
 					UserId:   req.UserID,
 					FullName: req.FullName,
-					Role:     entity.TEAM,
 				},
 				)
 

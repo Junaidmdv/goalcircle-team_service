@@ -9,21 +9,26 @@ import (
 	teamsaga "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga/team"
 	team_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/validater"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type TeamHandler struct {
 	teamUsecase team_uc.TeamUsecase
 	pb.UnimplementedTeamServiceServer
-	teamSaga teamsaga.TeamSagaMaker
-	timeOut  time.Duration
+	teamSaga  teamsaga.TeamSagaMaker
+	timeOut   time.Duration
+	validater *validater.Validater
 }
 
-func NewTeamHandler(tu team_uc.TeamUsecase, teamSaga teamsaga.TeamSagaMaker, timeout time.Duration) *TeamHandler {
+func NewTeamHandler(tu team_uc.TeamUsecase, teamSaga teamsaga.TeamSagaMaker, timeout time.Duration, validater *validater.Validater) *TeamHandler {
 	return &TeamHandler{
 		teamUsecase: tu,
 		teamSaga:    teamSaga,
 		timeOut:     timeout,
+		validater:   validater,
 	}
 }
 
@@ -31,6 +36,17 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 
 	context, cancel := context.WithTimeout(ctx, th.timeOut)
 	defer cancel()
+
+	request := ToCreateTeam(req)
+
+	if validationErrs := th.validater.Validation(request); validationErrs != nil {
+		stWithDetails, err := validater.ValidationError(validationErrs)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "failed to attach details")
+		}
+		return nil, stWithDetails.Err()
+	}  
+
 
 	res, err := th.teamSaga.CreateTeamSaga(context, &teamsaga.TeamSagaState{
 		UserID:       req.Owner.UserId,
@@ -75,6 +91,15 @@ func (th *TeamHandler) UpdateTeamDetails(ctx context.Context, req *pb.UpdateTeam
 
 	context, cancel := context.WithTimeout(ctx, th.timeOut)
 	defer cancel()
+	request := ToUpdateTeam(req)
+
+	if validationErrs := th.validater.Validation(request); validationErrs != nil {
+		stWithDetails, err := validater.ValidationError(validationErrs)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "failed to attach details")
+		}
+		return nil, stWithDetails.Err()
+	}
 
 	res, err := th.teamUsecase.UpdateTeamDetails(context, &team_uc.UpdateTeamDetailsReq{
 		TeamID:       req.TeamId,
@@ -83,6 +108,8 @@ func (th *TeamHandler) UpdateTeamDetails(ctx context.Context, req *pb.UpdateTeam
 		City:         req.City,
 		Description:  req.Description,
 		ShortName:    req.ShortName,
+		Email:        req.Email,
+		PhoneNum:     req.PhoneNumber,
 	})
 
 	if err != nil {
@@ -98,27 +125,7 @@ func (th *TeamHandler) UpdateTeamDetails(ctx context.Context, req *pb.UpdateTeam
 	}, nil
 }
 
-func (th *TeamHandler) UpdateTeamContactDetails(ctx context.Context, req *pb.UpdateTeamContactDetailsReq) (*pb.UpdateTeamContactDetailsRes, error) {
-	context, cancel := context.WithTimeout(ctx, th.timeOut)
-	defer cancel()
 
-	res, err := th.teamUsecase.UpdateTeamContactDetails(context, &team_uc.UpdateTeamContactDetailsReq{
-		TeamID:       req.TeamId,
-		TeamMemberID: req.TeamMemberId,
-		ContactEmail: &req.ContactEmail,
-		ContactPhone: &req.ContactPhoneNum,
-	})
-
-	if err != nil {
-		return nil, apperror.GRPCStatus(err)
-	}
-
-	return &pb.UpdateTeamContactDetailsRes{
-		TeamId:          res.TeamID.String(),
-		ContactEmail:    res.ContactEmail,
-		ContactPhoneNum: res.ContactPhone,
-	}, nil
-}
 
 func (th *TeamHandler) SetCaption(ctx context.Context, req *pb.SetCaptainReq) (*pb.SetCaptainRes, error) {
 	context, cancel := context.WithTimeout(ctx, th.timeOut)
@@ -170,6 +177,7 @@ func (th *TeamHandler) ListTeams(ctx context.Context, req *pb.ListTeamReq) (*pb.
 		Page:   req.Limit,
 		Limit:  req.Limit,
 		Status: status,
+		Search: req.Search,
 	})
 
 	if err != nil {

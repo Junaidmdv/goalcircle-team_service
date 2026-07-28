@@ -32,3 +32,29 @@ func MapProtoTeamStatus(status entity.TeamStatus) pb.TeamStatus {
 	}
 	return pb.TeamStatus_TEAM_STATUS_UNSPECIFIED
 }
+
+func ToCreateTeam(req *pb.CreateTeamReq) *CreateTeamReq {
+	return &CreateTeamReq{
+		Name:         req.Name,
+		City:         req.City,
+		Description:  req.Description,
+		ContactNum:   req.ContactNum,
+		Email:        req.Email,
+		RefreshToken: req.RefreshToken,
+		UserID:       req.Owner.UserId,
+		FullName:     req.Owner.FullName,
+	}
+}
+
+func ToUpdateTeam(rq *pb.UpdateTeamReq) *UpdateTeamDetailsReq {
+	return &UpdateTeamDetailsReq{
+		TeamID:       rq.TeamId,
+		TeamMemberID: rq.TeamMemberId,
+		Name:         *rq.Name,
+		City:         *rq.City,
+		Description:  *rq.City,
+		ShortName:    *rq.ShortName,
+		Email:        *rq.ShortName,
+		PhoneNum:     *rq.PhoneNumber,
+	}
+}

@@ -27,10 +27,13 @@ func NewTeamInviteUsecase(tm tminviterepo.TeamInviteRepository) TeamInviteUsecas
 }
 
 func (ti *teamInviteUsecase) CreateInvitation(ctx context.Context, req *TeamInviteReq) (*TeamInviteRes, error) {
+
 	teamMemberID, err := uuid.Parse(req.TeamMemberID)
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid team member id")
 	}
+
+    
 
 	invite, exist, err := ti.teamInviteRepo.GetInvitation(ctx, &teamMemberID)
 	if err != nil {

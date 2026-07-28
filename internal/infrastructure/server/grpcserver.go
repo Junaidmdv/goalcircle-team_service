@@ -24,9 +24,9 @@ import (
 	inviteuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teaminvite"
 	teammemberuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teammember"
 
-	playerHandler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/player" 
-	staffHandler"github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/staff" 
-   inviteHandler"github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/invite" 
+	inviteHandler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/invite"
+	playerHandler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/player"
+	staffHandler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/staff"
 
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/validater"
@@ -61,6 +61,9 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	if err != nil {
 		return err
 	}
+	if err := psqldb.Migration(); err != nil {
+		return err
+	}
 	validater, err := validater.NewValidater()
 	if err != nil {
 		return err
@@ -86,24 +89,23 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	userAuthpb := userclient_pb.NewAuthServiceClient(userclient.Conn)
 
 	teamSaga := teamsaga.NewTeamSagaMaker(teamUsecase, teamMemberUc, userAuthpb, gs.logger)
-	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut)
-	playerHandler:=playerHandler.NewPlayerHandler(playerUc, gs.logger,&gs.Config.Server.TimeOut,validater) 
-	staffHandler:=staffHandler.NewStaffHandler(teamStaffUc,gs.Config.Server.TimeOut) 
-	inviteHandler.NewTeamInviteHandler(teaminviteUc,gs.Config.Server.TimeOut) 
+	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut,validater)
+	playerHandler := playerHandler.NewPlayerHandler(playerUc, gs.logger, &gs.Config.Server.TimeOut, validater)
+	staffHandler := staffHandler.NewStaffHandler(teamStaffUc, gs.Config.Server.TimeOut)
+	inviteHandler.NewTeamInviteHandler(teaminviteUc, gs.Config.Server.TimeOut)
 
-
-	teamv1.RegisterTeamServiceServer(gs.Server, teamHandler) 
-	teamv1.RegisterPlayerServiceServer(gs.Server,playerHandler)  
-	teamv1.RegisterStaffServiceServer(gs.Server,staffHandler) 
-
-
+	teamv1.RegisterTeamServiceServer(gs.Server, teamHandler)
+	teamv1.RegisterPlayerServiceServer(gs.Server, playerHandler)
+	teamv1.RegisterStaffServiceServer(gs.Server, staffHandler)
 
 	return nil
 }
 
 func (gs *GRPCServer) Run() error {
-	lis, err := net.Listen("tcp", fmt.Sprintf("%d", gs.Config.Server.Port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", gs.Config.Server.Port))
+
 	if err != nil {
+
 		return err
 	}
 	return gs.Server.Serve(lis)

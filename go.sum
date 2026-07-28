@@ -1,5 +1,5 @@
-github.com/Junaidmdv/goalcircle-protos v0.0.0-20260709061720-2a288e22ce31 h1:MHABhys4heXPTMJCpiKHKXIfwvvdL7cBp4W3iGAhZzY=
-github.com/Junaidmdv/goalcircle-protos v0.0.0-20260709061720-2a288e22ce31/go.mod h1:Sl6oAnnM9BZ6sj+EiTHyRvnLBCjGDcBAF70r1Hyk0fw=
+github.com/Junaidmdv/goalcircle-protos v0.0.0-20260726045840-d8448fe0a2b0 h1:VpiCzP9C5XY4MkKKvO0kzf2FibUZKi+hS+hytbQKAIc=
+github.com/Junaidmdv/goalcircle-protos v0.0.0-20260726045840-d8448fe0a2b0/go.mod h1:Sl6oAnnM9BZ6sj+EiTHyRvnLBCjGDcBAF70r1Hyk0fw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

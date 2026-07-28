@@ -30,7 +30,7 @@ func (cb *configBuilder) WithMinio() ConfigBuilder {
 		cb.errors = append(cb.errors, errors.New("missing minio endpoint "))
 	}
 
-	bucket := os.Getenv("MINIO_BUCKET")
+	bucket := os.Getenv("BUCKET_NAME")
 
 	if bucket == "" {
 		cb.errors = append(cb.errors, errors.New("failed to add bucket name"))

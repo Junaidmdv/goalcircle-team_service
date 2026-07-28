@@ -34,12 +34,12 @@ func (sh *StaffHandler) AddStaff(ctx context.Context, req *pb.AddStaffReq) (*pb.
 	designation := MapStaffDesignation(req.Designation)
 
 	res, err := sh.StaffUsecase.AddStaff(context, &staffuc.AddStaffReq{
-		UserID:      req.UserId,
-		TeamID:      req.TeamId,
-		FullName:    req.FullName,
-		Designation: designation,
-		DOB:         req.Dob.AsTime(),
-		Role:        role,
+		TeamID:       req.TeamId,
+		FullName:     req.FullName,
+		TeamMemberID: req.TeamMemberId,
+		Designation:  designation,
+		DOB:          req.Dob.AsTime(),
+		Role:         role,
 	})
 
 	if err != nil {
@@ -55,15 +55,12 @@ func (sh *StaffHandler) AddStaff(ctx context.Context, req *pb.AddStaffReq) (*pb.
 	}, nil
 }
 
-
-
-func (tm *StaffHandler) ChangeStaffStatus(ctx context.Context){
+func (tm *StaffHandler) ChangeStaffStatus(ctx context.Context) {
 
 }
 
-func (tm *StaffHandler) ListTeamStaff(ctx context.Context){
+func (tm *StaffHandler) ListTeamStaff(ctx context.Context) {
 
 }
-
 
 // func(tm *StaffHandler)

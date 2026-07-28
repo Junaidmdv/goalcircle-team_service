@@ -8,12 +8,12 @@ import (
 )
 
 type AddStaffReq struct {
-	UserID      string
-	TeamID      string
-	FullName    string
-	Designation entity.StaffDesignation
-	DOB         time.Time
-	Role        entity.TeamMemberRole
+	TeamMemberID string
+	TeamID       string
+	FullName     string
+	Designation  entity.StaffDesignation
+	DOB          time.Time
+	Role         entity.TeamMemberRole
 }
 
 type AddStaffRes struct {

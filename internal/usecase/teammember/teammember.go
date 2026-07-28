@@ -34,8 +34,18 @@ func NewTeamMemberUsecase(tmr teammember.TeamMemberRepository, ti teaminvite.Tea
 }
 
 func (tm *teamMemberUsecase) AddTeamOwner(ctx context.Context, req *AddTeamOwnerReq) (*AddTeamOwnerRes, error) {
+
+	exist, err := tm.teamMemberRepo.IsTeamMemberExist(ctx, req.UserId)
+	if err != nil {
+		return nil, err
+	}
+	if exist {
+		return nil, apperror.NewConflictError("team member already added")
+	}
+
 	res, err := tm.teamMemberRepo.AddTeamMember(ctx, &entity.TeamMember{
 		ID:       uuid.New(),
+		UserID:   req.UserId,
 		TeamID:   req.TeamID,
 		FullName: req.FullName,
 		Role:     entity.TeamMemberRoleOwner,

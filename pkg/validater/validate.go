@@ -28,6 +28,7 @@ func NewValidater() (*Validater, error) {
 	validater.RegisterValidation("phone", phoneValidation)
 	validater.RegisterValidation("password", passwordValidation)
 	validater.RegisterValidation("player-position", playerPositionvalidater)
+	validater.RegisterValidation("team-name", teamNameValidation)
 
 	validater.RegisterTagNameFunc(func(field reflect.StructField) string {
 		name := strings.SplitN(field.Tag.Get("json"), ",", 2)[0]
@@ -59,7 +60,7 @@ func NewValidater() (*Validater, error) {
 	)
 
 	validater.RegisterTranslation("player-position", engtrans, func(ut ut.Translator) error {
-		return ut.Add("player-position", "{0} {1} is not valid player position", true)
+		return ut.Add("player-position", "{0} {1} is not valid", true)
 	},
 		func(ut ut.Translator, fe validator.FieldError) string {
 			t, _ := ut.T("player-position", fe.Field(), fmt.Sprintf("%v", fe.Value()))
@@ -73,6 +74,16 @@ func NewValidater() (*Validater, error) {
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
 			t, _ := ut.T("password", fe.Field())
+			return t
+		},
+	)
+
+	validater.RegisterTranslation("team-name", engtrans,
+		func(ut ut.Translator) error {
+			return ut.Add("team-name", "{0}: '{1}' is not a valid team name", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T("team-name", fe.Field(), fmt.Sprintf("%v", fe.Value()))
 			return t
 		},
 	)

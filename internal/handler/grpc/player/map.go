@@ -11,10 +11,13 @@ func ToAddPlayerReq(input *pb.AddPlayerReq) *AddPlayerReq {
 
 	return &AddPlayerReq{
 		TeamID:       input.TeamId,
+		TeamMemberID: input.TeamMemeberId,
 		FullName:     input.FullName,
 		DateOfBirth:  input.DateOfBirth.AsTime(),
 		JerseyNumber: input.JerseyNumber,
 		Position:     position,
+		Height:       input.Height,
+		Weight:       input.Weight,
 	}
 }
 

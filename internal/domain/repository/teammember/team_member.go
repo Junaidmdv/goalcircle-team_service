@@ -17,6 +17,7 @@ type TeamMemberRepository interface {
 	UpdateUserID(context.Context, *uuid.UUID, string) error
 	GetTeamMemeberRole(context.Context, uuid.UUID, uuid.UUID) (entity.TeamMemberRole, error)
 	GetStaffDesignation(context.Context, string) (entity.StaffDesignation, error)
+	IsTeamMemberExist(context.Context, string) (bool, error)
 }
 
 type teamMemberRepository struct {
@@ -29,6 +30,20 @@ func NewTeamMemberRepository(db *gorm.DB, logger logger.Logger) TeamMemberReposi
 		db:     db,
 		logger: logger,
 	}
+}
+
+func (tm *teamMemberRepository) IsTeamMemberExist(ctx context.Context, userID string) (bool, error) {
+	var count int64
+	err := tm.db.WithContext(ctx).
+		Model(&entity.TeamMember{}).
+		Where("user_id=? ", userID).
+		Count(&count).Error
+	if err != nil {
+		tm.logger.Error("database error", "error", err, "method", "teamMemberRepo.IsTeamMemberExist")
+		return false, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+
+	return count > 0, nil
 }
 
 func (tm *teamMemberRepository) AddTeamMember(ctx context.Context, input *entity.TeamMember) (*entity.TeamMember, error) {
@@ -56,24 +71,28 @@ func (tm *teamMemberRepository) UpdateUserID(ctx context.Context, teamMemberID *
 	return nil
 }
 
-func (tm *teamMemberRepository) GetTeamMemeberRole(ctx context.Context, teamID, teamMemberID uuid.UUID) (entity.TeamMemberRole, error) {
-	var role entity.TeamMemberRole
+func (tm *teamMemberRepository) GetTeamMemeberRole(
+	ctx context.Context,
+	teamID, teamMemberID uuid.UUID,
+) (entity.TeamMemberRole, error) {
+
+	var member entity.TeamMember
+
 	result := tm.db.WithContext(ctx).
-		Model(&entity.TeamMember{}).
 		Select("role").
 		Where("team_id = ? AND id = ?", teamID, teamMemberID).
-		Scan(&role)
+		Take(&member)
 
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return "", apperror.NewNotFoundError("team member not found")
+		}
+
 		tm.logger.Error("database error", "error", result.Error)
 		return "", apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
 	}
 
-	if result.RowsAffected == 0 {
-		return "", apperror.NewNotFoundError("team member not found")
-	}
-
-	return role, nil
+	return member.Role, nil
 }
 
 func (tm *teamMemberRepository) GetStaffDesignation(

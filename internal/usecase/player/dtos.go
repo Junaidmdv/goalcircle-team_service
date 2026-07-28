@@ -8,7 +8,8 @@ import (
 )
 
 type AddPlayerReq struct {
-	TeamID       string 
+	TeamID       string
+	TeamMemberID string
 	FullName     string
 	DOB          time.Time
 	JerseyNumber int32
@@ -76,6 +77,3 @@ type GetPlayerRes struct {
 	Status       entity.PlayerStatus
 	CreatedAt    time.Time
 }
-
-
-

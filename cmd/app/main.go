@@ -26,6 +26,9 @@ func main() {
 
 	cnfg, errs := config.LoadConfig().
 		WithGrpcServer().
+		WithPostgres().
+		WithMinio().
+		WithUserService().
 		Build()
 
 	if errs != nil {
@@ -37,6 +40,10 @@ func main() {
 	}
 
 	server := server.NewGRPCServer(cnfg, logger)
+	if err := server.BootstrapSetup(); err != nil {
+		logger.Error("bootstrap setup error", "error", err)
+		return
+	}
 
 	go func() {
 		logger.Info("grpc server running", "port", cnfg.Server.Port)

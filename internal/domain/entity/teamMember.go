@@ -26,7 +26,7 @@ const (
 type TeamMember struct {
 	ID         uuid.UUID `gorm:"primaryKey"`
 	TeamID     uuid.UUID
-	UserID     string `gorm:"index:user_index,unique"`
+	UserID     string 
 	FullName   string
 	Role       TeamMemberRole
 	CreatedAt  time.Time

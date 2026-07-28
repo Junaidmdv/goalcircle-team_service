@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/permission"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/player"
 	teamRepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
@@ -46,8 +47,21 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 
 	teamID, err := uuid.Parse(input.TeamID)
 	if err != nil {
-		return nil, apperror.NewBadRequestError("invalid player id")
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
 
+	teamMemberID, err := uuid.Parse(input.TeamMemberID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+
+	role, err := pu.teamMemberRepo.GetTeamMemeberRole(ctx, teamID, teamMemberID)
+	if err != nil {
+		return nil, err
+	}
+	permit := permission.HasPermissionTeam(role, permission.PermissionAddPlayer)
+	if !permit {
+		return nil, apperror.NewFailedPreCondition("You are not authorized to add players")
 	}
 
 	teamMember, err := pu.teamMemberRepo.AddTeamMember(ctx, &entity.TeamMember{

@@ -17,5 +17,4 @@ type TeamInvite struct {
 	UserID         string
 	ExpiresAt      time.Time
 	CreatedAt      time.Time
-	
 }

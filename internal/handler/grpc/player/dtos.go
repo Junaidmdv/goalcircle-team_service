@@ -9,6 +9,7 @@ import (
 
 type AddPlayerReq struct {
 	TeamID       string                `json:"team_id" validate:"required"`
+	TeamMemberID string                `json:"team_member_id"`
 	FullName     string                `json:"full_name"`
 	DateOfBirth  time.Time             `json:"dob"`
 	JerseyNumber int32                 `json:"jersey_number"`

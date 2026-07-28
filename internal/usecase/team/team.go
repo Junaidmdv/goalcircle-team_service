@@ -18,7 +18,7 @@ type TeamUsecase interface {
 	CreateTeam(context.Context, *CreateTeamReq) (*CreateTeamRes, error)
 	DeleteTeam(context.Context, uuid.UUID) error
 	UpdateTeamDetails(context.Context, *UpdateTeamDetailsReq) (*UpdateTeamDetailsRes, error)
-	UpdateTeamContactDetails(context.Context, *UpdateTeamContactDetailsReq) (*UpdateTeamContactDetailsRes, error)
+	// UpdateTeamContactDetails(context.Context, *UpdateTeamContactDetailsReq) (*UpdateTeamContactDetailsRes, error)
 	ListTeams(context.Context, *ListTeamsReq) (*ListTeamsRes, error)
 	ChangeCaptain(context.Context, *ChangeCaptainReq) (*ChangeCaptainRes, error)
 	ChangeViceCaptain(context.Context, *ChangeViceCaptainReq) (*ChangeViceCaptainRes, error)
@@ -50,9 +50,11 @@ func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*Crea
 		tu.logger.Error("Failed to generate code", "error", err, "method", "teamUsercase")
 	}
 
+	formatedTeamName := FormatTeamName(dt.Name)
+
 	res, err := tu.teamRepo.CreateTeam(ctx, &entity.Team{
 		ID:          uuid.New(),
-		Name:        dt.Name,
+		Name:        formatedTeamName,
 		ShortName:   tu.code.GenerateShortName(dt.Name),
 		City:        dt.City,
 		Description: dt.Description,
@@ -95,11 +97,17 @@ func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDet
 	permitted := permission.HasPermissionTeam(role, permission.PermissionUpdateTeamDetails)
 	if !permitted {
 		return nil, apperror.NewPermissionDenied("user not allowed to update team details")
+	} 
+
+	if req.Name != nil{
+        *req.Name=FormatTeamName(*req.Name)
 	}
 
 	if req.Name != nil && req.ShortName == nil {
 		*req.ShortName = tu.code.GenerateShortName(*req.Name)
 	}
+ 
+
 
 	team, err := tu.teamRepo.UpdateTeamDetails(ctx, teamId, &team_repo.UpdateTeamReq{
 		TeamID:      teamId,
@@ -107,6 +115,8 @@ func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDet
 		ShortName:   req.ShortName,
 		City:        req.City,
 		Description: req.Description,
+		PhoneNum:    req.PhoneNum,
+		Email:       req.Email,
 	})
 
 	return &UpdateTeamDetailsRes{
@@ -118,42 +128,7 @@ func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDet
 	}, nil
 }
 
-func (tu *teamUsecase) UpdateTeamContactDetails(ctx context.Context, req *UpdateTeamContactDetailsReq) (*UpdateTeamContactDetailsRes, error) {
 
-	teamId, err := uuid.Parse(req.TeamID)
-	if err != nil {
-		return nil, apperror.NewFailedPreCondition("invalid team id")
-	}
-
-	teamMemberID, err := uuid.Parse(req.TeamMemberID)
-	if err != nil {
-		return nil, apperror.NewFailedPreCondition("invalid team member id")
-	}
-
-	role, err := tu.teamMemberRepo.GetTeamMemeberRole(ctx, teamId, teamMemberID)
-	if err != nil {
-		return nil, err
-	}
-
-	permite := permission.HasPermissionTeam(role, permission.PermissionUpdateTeamContactDetails)
-	if !permite {
-		return nil, apperror.NewPermissionDenied("user not allowed to update team details")
-	}
-
-	res, err := tu.teamRepo.UpdateTeamContactDetails(ctx, teamId, &team_repo.UpdateTeamContact{
-		ContactEmail:    req.ContactEmail,
-		ContactPhoneNum: req.ContactPhone,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &UpdateTeamContactDetailsRes{
-		TeamID:       res.ID,
-		ContactPhone: res.ContactPhoneNum,
-		ContactEmail: res.ContactEmail,
-	}, nil
-}
 
 func (tu *teamUsecase) ChangeCaptain(ctx context.Context, req *ChangeCaptainReq) (*ChangeCaptainRes, error) {
 
@@ -285,7 +260,6 @@ func (tu *teamUsecase) ListTeams(ctx context.Context, input *ListTeamsReq) (*Lis
 
 func (tu *teamUsecase) GetTeam(ctx context.Context, req *GetTeamReq) (*GetTeamRes, error) {
 
-	
 	return &GetTeamRes{}, nil
 }
 

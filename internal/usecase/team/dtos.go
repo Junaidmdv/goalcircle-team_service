@@ -26,6 +26,8 @@ type UpdateTeamDetailsReq struct {
 	City         *string
 	Description  *string
 	ShortName    *string
+	PhoneNum     *string
+	Email        *string
 }
 
 type UpdateTeamDetailsRes struct {
@@ -43,8 +45,8 @@ type UpdateTeamContactDetailsReq struct {
 	ContactPhone *string
 }
 
-type UpdateTeamContactDetailsRes struct { 
-	TeamID uuid.UUID
+type UpdateTeamContactDetailsRes struct {
+	TeamID       uuid.UUID
 	ContactPhone string
 	ContactEmail string
 }
@@ -103,11 +105,8 @@ type GetTeamReq struct {
 type GetTeamRes struct {
 }
 
-
-type UploadLogoReq struct{
-
+type UploadLogoReq struct {
 }
 
-type UploadLogoRes struct{
-	
+type UploadLogoRes struct {
 }

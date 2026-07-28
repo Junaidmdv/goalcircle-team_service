@@ -11,6 +11,8 @@ type UpdateTeamReq struct {
 	ShortName   *string
 	City        *string
 	Description *string
+	Email       *string
+	PhoneNum    *string
 }
 
 type UpdateTeamContact struct {

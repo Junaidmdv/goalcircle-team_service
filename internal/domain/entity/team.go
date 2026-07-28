@@ -16,20 +16,20 @@ const (
 )
 
 type Team struct {
-	ID              uuid.UUID `gorm:"primaryKey"`
-	Name            string
-	ShortName       string
-	City            string
-	LogoUrl         string
-	TeamCode        string
-	Description     string
-	ContactEmail    string
-	ContactPhoneNum string
-	TeamStatus      TeamStatus
-	PlayerCount     int32
-	CaptainID       uuid.UUID
-	ViceCaptainID   uuid.UUID
-	CreatedAt       time.Time
-	TeamMember      []TeamMember `gorm:"foreignKey:TeamID"`
-	TeamStats       TeamStats    `gorm:"foreignKey:TeamID"`
+	ID            uuid.UUID `gorm:"primaryKey"`
+	Name          string
+	ShortName     string
+	City          string
+	LogoUrl       string
+	TeamCode      string
+	Description   string
+	Email         string
+	PhoneNum      string
+	TeamStatus    TeamStatus
+	PlayerCount   int32
+	CaptainID     uuid.UUID
+	ViceCaptainID uuid.UUID
+	CreatedAt     time.Time
+	TeamMember    []TeamMember `gorm:"foreignKey:TeamID"`
+	TeamStats     TeamStats    `gorm:"foreignKey:TeamID"`
 }

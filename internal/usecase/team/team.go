@@ -30,7 +30,8 @@ type teamUsecase struct {
 	teamMemberRepo teammember.TeamMemberRepository
 	logger         logger.Logger
 	code           code.CodeGenerater
-	playerRepo     playerrepo.PlayerRepository
+	playerRepo     playerrepo.PlayerRepository 
+	
 }
 
 func NewTeamUsecase(teamrepo team_repo.TeamRepository, logger logger.Logger, code code.CodeGenerater, tmrepo teammember.TeamMemberRepository, playerepo playerrepo.PlayerRepository) TeamUsecase {

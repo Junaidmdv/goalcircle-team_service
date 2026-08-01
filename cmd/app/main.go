@@ -27,7 +27,7 @@ func main() {
 	cnfg, errs := config.LoadConfig().
 		WithGrpcServer().
 		WithPostgres().
-		WithMinio().
+		WithObjectStorage().
 		WithUserService().
 		Build()
 

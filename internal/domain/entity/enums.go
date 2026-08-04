@@ -6,5 +6,6 @@ const (
 	MaxDefaultPaginateLimit = 100
 	MinDefaultPagination
 	CodeLength = 8  
-	CodeExpiryDays=7
+	CodeExpiryDays=7 
+	PictureMaxLen=20
 )

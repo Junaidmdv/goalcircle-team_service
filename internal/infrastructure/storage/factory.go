@@ -1,16 +1,23 @@
 package storage
 
 import (
+	"context"
 	"errors"
+	"io"
+	"time"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
 	minio_store "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/storage/minio"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/storage/s3"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
+	"github.com/google/uuid"
 )
 
 type ObjectStorage interface {
+	Upload(context.Context, uuid.UUID, string, string, io.Reader, int64, string) (string, error)
+	GetPresignedURL(context.Context, string, string, time.Duration) (string, error)
+	Delete(context.Context, string, string) error
 }
 
 func ObjectStorageFactoryMethod(ob config.ObjectStorageConfig, logger logger.Logger) (ObjectStorage, error) {

@@ -4,14 +4,12 @@ import (
 	"context"
 	"io"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type S3Storage struct {
 }
 
-func (m *S3Storage) Upload(ctx context.Context, teamID uuid.UUID, bucketName string, objectName string, data io.Reader, size int64, contentType string) (string, error) {
+func (m *S3Storage) Upload(ctx context.Context, teamID string, bucketName string, objectName string, data io.Reader, size int64, contentType string) (string, error) {
 	return "", nil
 }
 
@@ -22,5 +20,3 @@ func (m *S3Storage) GetPresignedURL(ctx context.Context, bucketName string, obje
 func (m *S3Storage) Delete(ctx context.Context, bucketName string, objectName string) error {
 	return nil
 }
-
-

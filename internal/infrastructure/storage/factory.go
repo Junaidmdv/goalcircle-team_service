@@ -11,11 +11,10 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/storage/s3"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
-	"github.com/google/uuid"
 )
 
 type ObjectStorage interface {
-	Upload(context.Context, uuid.UUID, string, string, io.Reader, int64, string) (string, error)
+	Upload(context.Context, string, string, string, io.Reader, int64, string) (string, error)
 	GetPresignedURL(context.Context, string, string, time.Duration) (string, error)
 	Delete(context.Context, string, string) error
 }

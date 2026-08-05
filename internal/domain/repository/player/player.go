@@ -17,6 +17,9 @@ type PlayerRepository interface {
 	GetTeamPlayers(context.Context, *ListUserReq) ([]entity.Player, int64, error)
 	GetPlayer(context.Context, *uuid.UUID) (*entity.Player, error)
 	GetPlayerStatus(context.Context, uuid.UUID, uuid.UUID) (entity.PlayerStatus, error)
+	UpdateImageKey(context.Context, uuid.UUID, string) error
+	IsPlayerExist(context.Context, uuid.UUID) (bool, error)
+	ReleasePlayer(context.Context, uuid.UUID) error
 }
 
 type playerRepository struct {
@@ -69,10 +72,10 @@ func (pr *playerRepository) GetTeamPlayers(ctx context.Context, details *ListUse
 	if result.Error != nil {
 		pr.logger.Error("database error", "error", result.Error, "method", "repository.Player.GetTeamPlayers")
 		return users, -1, apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
-	} 
+	}
 
 	err := query.
-		Scopes(Paginate(details.Page,details.Limit)).
+		Scopes(Paginate(details.Page, details.Limit)).
 		Order("created_at DESC").
 		Find(&users).Error
 
@@ -118,4 +121,53 @@ func (pr *playerRepository) GetPlayerStatus(ctx context.Context, teamID uuid.UUI
 	}
 
 	return result.Status, nil
+}
+
+func (pr *playerRepository) UpdateImageKey(ctx context.Context, playerID uuid.UUID, key string) error {
+
+	result := pr.db.WithContext(ctx).Model(&entity.Player{}).Where("id=?", playerID).Update("player_image_key=?", key)
+
+	if result.Error != nil {
+		pr.logger.Error(
+			"database failure",
+			"method", "teamrepo.UpdateImageKey",
+			"error", result.Error,
+		)
+		return apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return apperror.NewNotFoundError("player not found")
+	}
+
+	return nil
+}
+
+func (pr *playerRepository) IsPlayerExist(ctx context.Context, playerId uuid.UUID) (bool, error) {
+	var player entity.Player
+
+	if err := pr.db.WithContext(ctx).First(&player, "id=?", playerId).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		pr.logger.Error("database error", "method", "teamrepo.IsTeamExist", "error", err)
+		return false, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+
+	}
+
+	return true, nil
+}
+
+func (pr *playerRepository) ReleasePlayer(ctx context.Context, playerID uuid.UUID) error {
+	result := pr.db.WithContext(ctx).Model(&entity.Player{}).Where("id=?", playerID).Update("status", entity.PlayerStatusReleased)
+
+	if result.Error == nil {
+		pr.logger.Error("database failure", "method", "release player", "error", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return apperror.NewNotFoundError("player not found")
+	}
+
+	return nil
 }

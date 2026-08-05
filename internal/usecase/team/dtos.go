@@ -107,12 +107,12 @@ type GetTeamRes struct {
 
 type UploadLogoReq struct {
 	TeamID      string
-	LogoData       []byte
+	LogoData    []byte
 	ContentType string
 	Size        int64
 }
 
 type UploadLogoRes struct {
-	TeamID      string
+	TeamID       string
 	PresignedUrl string
 }

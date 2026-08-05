@@ -206,12 +206,23 @@ func (tr *teamRepository) IsTeamExist(ctx context.Context, teamID uuid.UUID) (bo
 }
 
 func (tr *teamRepository) UpdateLogoKey(ctx context.Context, teamID uuid.UUID, key string) error {
-	if err := tr.db.WithContext(ctx).Where("id=?", teamID).Update("logo_key=", key).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apperror.NewNotFoundError("team is not found")
-		}
-		tr.logger.Error("database failure", "method", "teamrepo.UpdateLogoKey", "error", err)
-		return apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	result := tr.db.WithContext(ctx).
+		Model(&entity.Team{}).
+		Where("id = ?", teamID).
+		Update("logo_key", key)
+
+	if result.Error != nil {
+		tr.logger.Error(
+			"database failure",
+			"method", "teamrepo.UpdateLogoKey",
+			"error", result.Error,
+		)
+		return apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
 	}
+
+	if result.RowsAffected == 0 {
+		return apperror.NewNotFoundError("team not found")
+	}
+
 	return nil
 }

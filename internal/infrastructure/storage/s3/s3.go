@@ -9,7 +9,7 @@ import (
 type S3Storage struct {
 }
 
-func (m *S3Storage) Upload(ctx context.Context, teamID string, bucketName string, objectName string, data io.Reader, size int64, contentType string) (string, error) {
+func (m *S3Storage) Upload(ctx context.Context, bucketName string, objectName string, data io.Reader, size int64, contentType string) (string, error) {
 	return "", nil
 }
 

@@ -16,9 +16,6 @@ const (
 	PlayerStatusPendingActionvation PlayerStatus = "PENDING_ACTIVATION"
 )
 
-
-
-
 type PlayerPosition string
 
 const (
@@ -46,6 +43,7 @@ const (
 type Player struct {
 	ID           uuid.UUID `gorm:"type:uuid;primaryKey"`
 	TeamMemberID uuid.UUID `gorm:"type:uuid;uniqueIndex"`
+	ImageKey     string
 	FullName     string
 	DateOfBirth  time.Time
 	JerseyNumber int32
@@ -56,5 +54,4 @@ type Player struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	PlayerStats  PlayerStats `gorm:"foreignKey:PlayerID"`
-	
 }

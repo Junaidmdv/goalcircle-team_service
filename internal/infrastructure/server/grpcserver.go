@@ -69,13 +69,11 @@ func (gs *GRPCServer) BootstrapSetup() error {
 		return err
 	}
 
-	objectStorage,err:=storage.ObjectStorageFactoryMethod(*gs.Config.StorageConfig,gs.logger) 
-	if err != nil{
+	objectStorage, err := storage.ObjectStorageFactoryMethod(*gs.Config.StorageConfig, gs.logger)
+	if err != nil {
 		return err
 	}
 	codeGenerater := code.NewCodeGenerater(entity.CodeLength)
-
-
 
 	teamRepository := team_repo.NewTeamRepository(psqldb.DB, gs.logger)
 	TeamMemberRepository := teammember_repo.NewTeamMemberRepository(psqldb.DB, gs.logger)
@@ -83,10 +81,10 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	playerRepo := player.NewPlayerRepository(psqldb.DB, gs.logger)
 	teamInviteRepo := teaminvite.NewTeamMemberInviteRepository(psqldb.DB, gs.logger)
 
-	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater, TeamMemberRepository, playerRepo,objectStorage,gs.Config.StorageConfig)
+	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater, TeamMemberRepository, playerRepo, objectStorage, gs.Config.StorageConfig)
 	teamMemberUc := teammemberuc.NewTeamMemberUsecase(TeamMemberRepository, teamInviteRepo, gs.logger)
 	teamStaffUc := staffuc.NewTeamStaffUsecase(TeamMemberRepository, staffRepository)
-	playerUc := playeruc.NewPlayerUsecase(playerRepo, TeamMemberRepository, teamRepository, codeGenerater)
+	playerUc := playeruc.NewPlayerUsecase(playerRepo, TeamMemberRepository, teamRepository, gs.logger, objectStorage, gs.Config.StorageConfig, codeGenerater)
 	teaminviteUc := inviteuc.NewTeamInviteUsecase(teamInviteRepo)
 
 	userclient, err := userclientcon.NewUserGRPCClient(gs.Config.UserSrv, gs.logger)
@@ -97,7 +95,7 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	userAuthpb := userclient_pb.NewAuthServiceClient(userclient.Conn)
 
 	teamSaga := teamsaga.NewTeamSagaMaker(teamUsecase, teamMemberUc, userAuthpb, gs.logger)
-	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut,validater)
+	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut, validater)
 	playerHandler := playerHandler.NewPlayerHandler(playerUc, gs.logger, &gs.Config.Server.TimeOut, validater)
 	staffHandler := staffHandler.NewStaffHandler(teamStaffUc, gs.Config.Server.TimeOut)
 	inviteHandler.NewTeamInviteHandler(teaminviteUc, gs.Config.Server.TimeOut)

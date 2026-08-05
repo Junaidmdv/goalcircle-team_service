@@ -37,7 +37,7 @@ func NewMinio(config config.ObjectStorageConfig, logger logger.Logger) (*Minio, 
 	}, nil
 }
 
-func (m *Minio) Upload(ctx context.Context, teamID string, bucketName string, objectName string, data io.Reader, size int64, contentType string) (string, error) {
+func (m *Minio) Upload(ctx context.Context, bucketName string, objectName string, data io.Reader, size int64, contentType string) (string, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
@@ -53,7 +53,6 @@ func (m *Minio) Upload(ctx context.Context, teamID string, bucketName string, ob
 			UserMetadata: map[string]string{
 				"uploaded-by": "goalcircle.team",
 				"entity":      "team-logo",
-				"team-id":     teamID,
 			},
 		})
 

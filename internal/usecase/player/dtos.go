@@ -1,7 +1,6 @@
 package player
 
 import (
-	"bytes"
 	"time"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
@@ -17,7 +16,9 @@ type AddPlayerReq struct {
 	Postion      entity.PlayerPosition
 	Height       float32
 	Weight       float32
-	ImageBytes   bytes.Buffer
+	ImageBytes   []byte
+	ContentType  string
+	ImageSize    int
 }
 
 type AddPlayerRes struct {
@@ -78,4 +79,28 @@ type GetPlayerRes struct {
 	Weight       float32
 	Status       entity.PlayerStatus
 	CreatedAt    time.Time
+}
+
+type ReleasePlayerReq struct {
+	UserID   string
+	TeamID   string 
+	PlayerID string 
+}
+
+type ReleasePlayerRes struct {
+}
+
+type UpdatePlayerImageReq struct {
+	UserID      string
+	TeamID      string
+	PlayerID    string
+	ImageData   []byte
+	ContentType string
+	Size        int
+}
+
+type UpdatePlayerImageRes struct {
+	TeamID       string
+	PlayerID     string
+	PresignedUrl string
 }

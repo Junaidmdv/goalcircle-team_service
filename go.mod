@@ -4,6 +4,7 @@ go 1.25.1
 
 require (
 	github.com/Junaidmdv/goalcircle-protos v0.0.0-20260805080818-9704ad21de56
+	github.com/chai2010/webp v1.4.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.30.3

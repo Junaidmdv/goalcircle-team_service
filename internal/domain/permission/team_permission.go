@@ -5,14 +5,16 @@ import "github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 var TeamPermissions = map[entity.TeamMemberRole]map[Permission]bool{
 	entity.TeamMemberRoleOwner: {
 		PermissionUpdateTeamDetails:        true,
+		PermissionAddTeamPlayerImage:       true,
 		PermissionAddPlayer:                true,
 		PermissionAddStaff:                 true,
 		PermissionUpdateTeamContactDetails: true,
 	},
 	entity.TeamMemberRoleManager: {
-		PermissionAddPlayer:         true,
-		PermissionAddStaff:          true,
-		PermissionUpdateTeamDetails: true,
+		PermissionAddPlayer:          true,
+		PermissionAddTeamPlayerImage: true,
+		PermissionAddStaff:           true,
+		PermissionUpdateTeamDetails:  true,
 	},
 }
 

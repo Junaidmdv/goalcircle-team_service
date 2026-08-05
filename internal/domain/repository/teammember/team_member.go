@@ -18,6 +18,7 @@ type TeamMemberRepository interface {
 	GetTeamMemeberRole(context.Context, uuid.UUID, uuid.UUID) (entity.TeamMemberRole, error)
 	GetStaffDesignation(context.Context, string) (entity.StaffDesignation, error)
 	IsTeamMemberExist(context.Context, string) (bool, error)
+	DeleteTeamMember(context.Context, uuid.UUID, uuid.UUID) error
 }
 
 type teamMemberRepository struct {
@@ -118,4 +119,19 @@ func (tm *teamMemberRepository) GetStaffDesignation(ctx context.Context, userID 
 	}
 
 	return result.Designation, nil
+}
+
+func (tr *teamMemberRepository) DeleteTeamMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error {
+
+	result := tr.db.WithContext(ctx).Where("user_id=? AND team_id=?", userID, teamID).Delete(&entity.TeamMember{})
+	if result.Error != nil {
+		tr.logger.Error("database error", "method", "teamMemberRepo.DeleteTeamMember", "error", result.Error)
+		return apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return apperror.NewNotFoundError("team member is not found")
+	}
+
+	return nil
 }

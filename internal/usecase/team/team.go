@@ -303,7 +303,7 @@ func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*Upl
 
 	objectName := CreateObjectName(req.TeamID)
 
-	key, err := tu.objectStore.Upload(ctx, req.TeamID, tu.objectStoreConfig.Bucket, objectName, logoReader, req.Size, contentType)
+	key, err := tu.objectStore.Upload(ctx, tu.objectStoreConfig.Bucket, objectName, logoReader, req.Size, contentType)
 
 	if err != nil {
 

@@ -10,4 +10,5 @@ const (
 	PermissionUpdateTeamContactDetails Permission = "UPDATE_TEAM_CONTACT_DETAILS"
 	PermissionApointCaptain            Permission = "APOINT_CAPTAIN"
 	PermissionApointVicecaptain        Permission = "APOINT_VICECAPTAIN"
+	PermissionAddTeamPlayerImage       Permission = "ADD_PLAYER_IMAGE"
 )

@@ -45,6 +45,7 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 	var (
 		playerDetails *pb.PlayerDetails
 		buffer        bytes.Buffer
+		imageSize     int
 	)
 
 	for {
@@ -67,10 +68,12 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 				return status.Error(codes.InvalidArgument, "player details is missing")
 			}
 			buffer.Write(data.PlayerImageChunks)
+			imageSize += len(data.PlayerImageChunks)
 		}
 	}
 
-	if err := imageutil.ValidateImage(buffer.Bytes(), imageutil.PlayerImage); err != nil {
+	contentType, err := imageutil.ValidateImage(buffer.Bytes(), imageutil.PlayerImage)
+	if err != nil {
 		return apperror.GRPCStatus(err)
 	}
 
@@ -92,7 +95,9 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 		Postion:      data.Position,
 		Height:       data.Height,
 		Weight:       data.Weight,
-		ImageBytes:   buffer,
+		ImageBytes:   buffer.Bytes(),
+		ContentType:  contentType,
+		ImageSize:    imageSize,
 	})
 
 	if err != nil {

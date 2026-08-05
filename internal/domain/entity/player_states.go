@@ -19,7 +19,6 @@ type PlayerStats struct {
 	CleanSheets   int32
 	GoalsConceded int32
 	UpdatedAt     time.Time
-	
 }
 
 

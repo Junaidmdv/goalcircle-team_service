@@ -1,11 +1,20 @@
 package team
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+)
+
+const (
+	MinWidth  = 128
+	MinHeight = 128
+
+	MaxWidth  = 1024
+	MaxHeight = 1024
 )
 
 func FormatTeamName(name string) string {
@@ -40,4 +49,20 @@ func ImageAllowedFormate(mimetype string) error {
 	}
 
 	return nil
+}
+
+func ValidateImageDiamension(height, width int) error {
+
+	if height < MinHeight || width < MinWidth {
+		return apperror.NewInvalidArgumentError("logo dimensions must be at least 128x128")
+	}
+
+	if height > MaxHeight || width > MaxWidth {
+		return apperror.NewInvalidArgumentError("logo dimensions must be at least 128x128")
+	}
+	return nil
+}
+
+func CreateObjectName(teamID string) string {
+	return fmt.Sprintf("teams/%s/logo.webp", teamID)
 }

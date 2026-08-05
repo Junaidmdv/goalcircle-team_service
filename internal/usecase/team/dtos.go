@@ -114,5 +114,5 @@ type UploadLogoReq struct {
 
 type UploadLogoRes struct {
 	TeamID      string
-	ResignedUrl string
+	PresignedUrl string
 }

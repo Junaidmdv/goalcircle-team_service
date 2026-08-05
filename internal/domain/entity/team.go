@@ -20,7 +20,7 @@ type Team struct {
 	Name          string
 	ShortName     string
 	City          string
-	LogoUrl       string
+	LogoKey       string
 	TeamCode      string
 	Description   string
 	Email         string

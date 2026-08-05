@@ -21,6 +21,8 @@ type TeamRepository interface {
 	SetCaptain(context.Context, uuid.UUID, uuid.UUID) error
 	SetViceCaptain(context.Context, uuid.UUID, uuid.UUID) error
 	ListTeams(context.Context, *ListTeamsReq) ([]entity.Team, int32, error)
+	IsTeamExist(context.Context, uuid.UUID) (bool, error)
+	UpdateLogoKey(context.Context, uuid.UUID, string) error
 }
 
 type teamRepository struct {
@@ -184,8 +186,32 @@ func (tm *teamRepository) ListTeams(ctx context.Context, req *ListTeamsReq) ([]e
 
 	if err != nil {
 		return nil, -1, apperror.NewInternalError("Something went wrong please try again later", err)
+	}
+	return teams, -1, nil
+}
 
+func (tr *teamRepository) IsTeamExist(ctx context.Context, teamID uuid.UUID) (bool, error) {
+
+	var team entity.Team
+
+	if err := tr.db.WithContext(ctx).First(&team, "id=?", teamID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		tr.logger.Error("database error", "method", "teamrepo.IsTeamExist", "error", err)
+		return false, apperror.NewInternalError(apperror.InternalErrorMsg, err)
 	}
 
-	return teams, -1, nil
+	return true, nil
+}
+
+func (tr *teamRepository) UpdateLogoKey(ctx context.Context, teamID uuid.UUID, key string) error {
+	if err := tr.db.WithContext(ctx).Where("id=?", teamID).Update("logo_key=", key).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return apperror.NewNotFoundError("team is not found")
+		}
+		tr.logger.Error("database failure", "method", "teamrepo.UpdateLogoKey", "error", err)
+		return apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+	return nil
 }

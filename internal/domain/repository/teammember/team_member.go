@@ -73,14 +73,14 @@ func (tm *teamMemberRepository) UpdateUserID(ctx context.Context, teamMemberID *
 
 func (tm *teamMemberRepository) GetTeamMemeberRole(
 	ctx context.Context,
-	teamID, teamMemberID uuid.UUID,
+	teamID, userID uuid.UUID,
 ) (entity.TeamMemberRole, error) {
 
 	var member entity.TeamMember
 
 	result := tm.db.WithContext(ctx).
 		Select("role").
-		Where("team_id = ? AND id = ?", teamID, teamMemberID).
+		Where("team_id = ? AND user_id = ? AND status=?", teamID, userID, entity.TeamMemberStatusActive).
 		Take(&member)
 
 	if result.Error != nil {
@@ -95,10 +95,7 @@ func (tm *teamMemberRepository) GetTeamMemeberRole(
 	return member.Role, nil
 }
 
-func (tm *teamMemberRepository) GetStaffDesignation(
-	ctx context.Context,
-	userID string,
-) (entity.StaffDesignation, error) {
+func (tm *teamMemberRepository) GetStaffDesignation(ctx context.Context, userID string) (entity.StaffDesignation, error) {
 
 	var result struct {
 		Designation entity.StaffDesignation
@@ -108,7 +105,7 @@ func (tm *teamMemberRepository) GetStaffDesignation(
 		Table("team_members").
 		Select("staff.designation").
 		Joins("JOIN staff ON staff.team_member_id = team_members.id").
-		Where("team_members.user_id = ?", userID).
+		Where("team_members.user_id = ? AND team_members.status=?", userID, entity.TeamMemberStatusActive).
 		Take(&result).Error
 
 	if err != nil {

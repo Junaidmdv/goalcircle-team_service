@@ -1,9 +1,12 @@
 package team
 
 import (
+	"bytes"
 	"context"
+	"image"
 	"net/http"
 
+	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/permission"
 	playerrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/player"
@@ -27,21 +30,24 @@ type TeamUsecase interface {
 }
 
 type teamUsecase struct {
-	teamRepo       team_repo.TeamRepository
-	teamMemberRepo teammember.TeamMemberRepository
-	logger         logger.Logger
-	code           code.CodeGenerater
-	playerRepo     playerrepo.PlayerRepository
-	objectStore    storage.ObjectStorage
+	teamRepo          team_repo.TeamRepository
+	teamMemberRepo    teammember.TeamMemberRepository
+	logger            logger.Logger
+	code              code.CodeGenerater
+	playerRepo        playerrepo.PlayerRepository
+	objectStore       storage.ObjectStorage
+	objectStoreConfig *config.ObjectStorageConfig
 }
 
-func NewTeamUsecase(teamrepo team_repo.TeamRepository, logger logger.Logger, code code.CodeGenerater, tmrepo teammember.TeamMemberRepository, playerepo playerrepo.PlayerRepository) TeamUsecase {
+func NewTeamUsecase(teamrepo team_repo.TeamRepository, logger logger.Logger, code code.CodeGenerater, tmrepo teammember.TeamMemberRepository, playerepo playerrepo.PlayerRepository, ob storage.ObjectStorage, obconfig *config.ObjectStorageConfig) TeamUsecase {
 	return &teamUsecase{
-		teamRepo:       teamrepo,
-		logger:         logger,
-		code:           code,
-		teamMemberRepo: tmrepo,
-		playerRepo:     playerepo,
+		teamRepo:          teamrepo,
+		logger:            logger,
+		code:              code,
+		teamMemberRepo:    tmrepo,
+		playerRepo:        playerepo,
+		objectStore:       ob,
+		objectStoreConfig: obconfig,
 	}
 }
 
@@ -91,7 +97,7 @@ func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDet
 		return nil, apperror.NewFailedPreCondition("invalid team member id")
 	}
 
-	role, err := tu.teamMemberRepo.GetTeamMemeberRole(ctx, teamId, teamMemberID)
+	role, err := tu.teamMemberRepo.GetTeamMemeberRole(ctx, teamId, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +239,7 @@ func (tu *teamUsecase) ListTeams(ctx context.Context, input *ListTeamsReq) (*Lis
 			TeamID:     team.ID,
 			Name:       team.Name,
 			City:       team.City,
-			LogoUrl:    team.LogoUrl,
+			LogoUrl:    team.LogoKey,
 			TeamCode:   team.TeamCode,
 			TeamStatus: team.TeamStatus,
 		})
@@ -263,12 +269,12 @@ func (tu *teamUsecase) GetTeam(ctx context.Context, req *GetTeamReq) (*GetTeamRe
 
 func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*UploadLogoRes, error) {
 
-	id, err := uuid.Parse(req.TeamID)
+	teamid, err := uuid.Parse(req.TeamID)
 	if err != nil {
 		return nil, apperror.NewInvalidArgumentError("invalid team id")
 	}
 
-	exist, err := tu.teamRepo.IsTeamExist(ctx, id)
+	exist, err := tu.teamRepo.IsTeamExist(ctx, teamid)
 	if err != nil {
 		return nil, err
 	}
@@ -283,5 +289,41 @@ func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*Upl
 		return nil, err
 	}
 
-	return &UploadLogoRes{}, nil
+	logoReader := bytes.NewReader(req.LogoData)
+
+	config, _, err := image.DecodeConfig(logoReader)
+	if err != nil {
+		tu.logger.Error("failed decode image using image.DecodeConfig", "error", err)
+		return nil, apperror.NewInternalError("failed decode image", err)
+	}
+
+	if err := ValidateImageDiamension(config.Height, config.Width); err != nil {
+		return nil, err
+	}
+
+	objectName := CreateObjectName(req.TeamID)
+
+	key, err := tu.objectStore.Upload(ctx, req.TeamID, tu.objectStoreConfig.Bucket, objectName, logoReader, req.Size, contentType)
+
+	if err != nil {
+
+		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+
+	if err = tu.teamRepo.UpdateLogoKey(ctx, teamid, key); err != nil {
+		return nil, err
+	}
+
+	presignedUrl, err := tu.objectStore.GetPresignedURL(ctx, tu.objectStoreConfig.Bucket, key, tu.objectStoreConfig.PresignedURLExpiry)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &UploadLogoRes{
+		TeamID: req.TeamID, 
+		PresignedUrl: presignedUrl,
+	}, nil
 }
+
+

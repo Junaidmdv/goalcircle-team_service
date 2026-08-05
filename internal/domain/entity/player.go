@@ -16,6 +16,9 @@ const (
 	PlayerStatusPendingActionvation PlayerStatus = "PENDING_ACTIVATION"
 )
 
+
+
+
 type PlayerPosition string
 
 const (

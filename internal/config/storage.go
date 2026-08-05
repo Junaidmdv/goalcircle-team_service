@@ -4,16 +4,18 @@ import (
 	"errors"
 	"os"
 	"strconv"
+	"time"
 )
 
 type ObjectStorageConfig struct {
-	StorageProvider string
-	AccesskeyId     string
-	SecreteKey      string
-	EndPoint        string
-	Region          string
-	Bucket          string
-	SSL             bool
+	StorageProvider    string
+	AccesskeyId        string
+	SecreteKey         string
+	EndPoint           string
+	Region             string
+	Bucket             string
+	SSL                bool
+	PresignedURLExpiry time.Duration
 }
 
 func (cb *configBuilder) WithObjectStorage() ConfigBuilder {
@@ -58,18 +60,25 @@ func (cb *configBuilder) WithObjectStorage() ConfigBuilder {
 		cb.errors = append(cb.errors, errors.New("failed to add bucket name"))
 	}
 
+	duration, err := time.ParseDuration(os.Getenv("PRESIGNED_URL_EXPIRY"))
+	if err != nil {
+		cb.errors = append(cb.errors, errors.New("failed to add presigned url expiry"))
+	}
+
 	if len(cb.errors) > 0 {
 		return cb
 	}
+	
 
 	cb.config.StorageConfig = &ObjectStorageConfig{
-		StorageProvider: storageProvider,
-		AccesskeyId:     accessKey,
-		SecreteKey:      secreteKey,
-		EndPoint:        endpoint,
-		Bucket:          bucket,
-		Region:          region,
-		SSL:             useSSL,
+		StorageProvider:    storageProvider,
+		AccesskeyId:        accessKey,
+		SecreteKey:         secreteKey,
+		EndPoint:           endpoint,
+		Bucket:             bucket,
+		Region:             region,
+		SSL:                useSSL,
+		PresignedURLExpiry: duration,
 	}
 
 	return cb

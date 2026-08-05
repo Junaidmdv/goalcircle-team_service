@@ -9,6 +9,10 @@ import (
 
 type AddPlayerReq struct {
 	TeamID       string                `json:"team_id" validate:"required"`
+<<<<<<< Updated upstream
+=======
+	UserID       string                `json:"user_id"`
+>>>>>>> Stashed changes
 	FullName     string                `json:"full_name"`
 	DateOfBirth  time.Time             `json:"dob"`
 	JerseyNumber int32                 `json:"jersey_number"`

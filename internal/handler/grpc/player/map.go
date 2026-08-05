@@ -11,6 +11,10 @@ func ToAddPlayerReq(input *pb.AddPlayerReq) *AddPlayerReq {
 
 	return &AddPlayerReq{
 		TeamID:       input.TeamId,
+<<<<<<< Updated upstream
+=======
+		UserID:       input.UserId,
+>>>>>>> Stashed changes
 		FullName:     input.FullName,
 		DateOfBirth:  input.DateOfBirth.AsTime(),
 		JerseyNumber: input.JerseyNumber,

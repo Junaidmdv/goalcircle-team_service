@@ -38,7 +38,12 @@ func (ph *PlayerHandler) AddNewPlayer(ctx context.Context, input *pb.AddPlayerRe
 	}
 
 	playr, err := ph.playerUc.AddNewPlayer(context, &player.AddPlayerReq{
+<<<<<<< Updated upstream
 		TeamID:       data.TeamID,
+=======
+		TeamID:       data.TeamID, 
+		TeamMemberID: data.UserID,
+>>>>>>> Stashed changes
 		FullName:     data.FullName,
 		DOB:          data.DateOfBirth,
 		JerseyNumber: data.JerseyNumber,

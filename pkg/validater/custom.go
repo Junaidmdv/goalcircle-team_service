@@ -32,4 +32,10 @@ func playerPositionvalidater(fl validator.FieldLevel) bool {
 	return fl.Field().String() != "unspecified"
 }
 
+func teamNameValidation(fl validator.FieldLevel) bool {
 
+	teamName := fl.Field().String()
+	regex := ``
+	match, _ := regexp.MatchString(teamName, regex)
+	return match
+}

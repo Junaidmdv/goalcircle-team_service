@@ -7,7 +7,8 @@ import (
 )
 
 type PlayerStats struct {
-	PlayerID      uuid.UUID `gorm:"primaryKey"`
+	ID            uuid.UUID `gorm:"primaryKey"`
+	PlayerID      uuid.UUID
 	Appearances   int32
 	MinutesPlayed int32
 	Goals         int32

@@ -7,15 +7,17 @@ import (
 )
 
 type Config struct {
-	Server *GRPCServerConfig 
-	Postgres *PostgresConfig 
-	UserSrv  *UserService
+	Server        *GRPCServerConfig
+	Postgres      *PostgresConfig
+	UserSrv       *UserService
+	StorageConfig *ObjectStorageConfig
 }
 
 type ConfigBuilder interface {
-	WithGrpcServer() ConfigBuilder 
-	WithPostgres()ConfigBuilder 
-	WithUserService()ConfigBuilder
+	WithGrpcServer() ConfigBuilder
+	WithPostgres() ConfigBuilder
+	WithUserService() ConfigBuilder
+	WithObjectStorage() ConfigBuilder
 	Build() (*Config, []error)
 }
 

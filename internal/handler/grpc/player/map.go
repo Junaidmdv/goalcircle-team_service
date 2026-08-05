@@ -5,20 +5,19 @@ import (
 	teamv1 "github.com/Junaidmdv/goalcircle-protos/team/v1"
 )
 
-func ToAddPlayerReq(input *pb.AddPlayerReq) *AddPlayerReq {
+func ToAddPlayerReq(input *pb.PlayerDetails) *AddPlayerReq {
 
 	position := MapPlayerPosition(teamv1.PlayerPosition(input.Position))
 
 	return &AddPlayerReq{
 		TeamID:       input.TeamId,
-<<<<<<< Updated upstream
-=======
 		UserID:       input.UserId,
->>>>>>> Stashed changes
 		FullName:     input.FullName,
 		DateOfBirth:  input.DateOfBirth.AsTime(),
 		JerseyNumber: input.JerseyNumber,
 		Position:     position,
+		Height:       input.Height,
+		Weight:       input.Weight,
 	}
 }
 

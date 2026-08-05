@@ -20,7 +20,7 @@ func (cb *configBuilder) WithGrpcServer() ConfigBuilder {
 
 	timeout, err := time.ParseDuration(os.Getenv("TIMEOUT"))
 	if err != nil {
-		cb.errors = append(cb.errors, errors.New("invlid or missing timout data"))
+		cb.errors = append(cb.errors, errors.New("invalid or missing to add grpc timeout"))
 	}
 
 	if len(cb.errors) > 0 {

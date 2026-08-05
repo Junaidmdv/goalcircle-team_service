@@ -2,11 +2,12 @@ package player
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/permission"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/player"
 	teamRepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
-	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
@@ -25,7 +26,6 @@ type playerUsecase struct {
 	playerRepository player.PlayerRepository
 	teamMemberRepo   teammember.TeamMemberRepository
 	teamRepository   teamRepo.TeamRepository
-	teamInviteRepo   teaminvite.TeamInviteRepository
 	code             code.CodeGenerater
 	logger           logger.Logger
 }
@@ -33,14 +33,13 @@ type playerUsecase struct {
 func NewPlayerUsecase(player player.PlayerRepository,
 	tmRepo teammember.TeamMemberRepository,
 	teamRepo teamRepo.TeamRepository,
-	tmr teaminvite.TeamInviteRepository,
+
 	code code.CodeGenerater) PlayerUsecase {
 
 	return &playerUsecase{
 		playerRepository: player,
 		teamMemberRepo:   tmRepo,
 		teamRepository:   teamRepo,
-		teamInviteRepo:   tmr,
 		code:             code,
 	}
 }
@@ -49,15 +48,32 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 
 	teamID, err := uuid.Parse(input.TeamID)
 	if err != nil {
-		return nil, apperror.NewBadRequestError("invalid player id")
-
+		return nil, apperror.NewBadRequestError("invalid team id")
 	}
+
+	userID, err := uuid.Parse(input.UserID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+
+	role, err := pu.teamMemberRepo.GetTeamMemeberRole(ctx, teamID, userID)
+	if err != nil {
+		return nil, err
+	}
+	permit := permission.HasPermissionTeam(role, permission.PermissionAddPlayer)
+	if !permit {
+		return nil, apperror.NewFailedPreCondition("You are not authorized to add players")
+	}
+
+
+
+
 
 	teamMember, err := pu.teamMemberRepo.AddTeamMember(ctx, &entity.TeamMember{
 		ID:       uuid.New(),
 		TeamID:   teamID,
 		FullName: input.FullName,
-		Role:     entity.PLAYER,
+		Role:     entity.TeamMemberRolePlayer,
 	})
 
 	if err != nil {

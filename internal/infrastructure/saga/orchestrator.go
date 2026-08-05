@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 )
 
@@ -29,7 +28,7 @@ func (o *Orchestrator) Execute(ctx context.Context, SagaState interface{}) error
 		if err := step.Action(ctx, SagaState); err != nil {
 			o.logger.Error(fmt.Sprintf("[SAGA] step %s failed: %v — starting rollback", step.Name, err))
 			o.compensate(ctx, SagaState, completed)
-			return apperror.NewInternalError(apperror.InternalErrorMsg, err)
+			return err
 		}
 
 		completed = append(completed, step)

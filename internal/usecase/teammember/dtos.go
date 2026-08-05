@@ -1,4 +1,4 @@
-package teamowner
+package teammemberuc
 
 import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
@@ -17,23 +17,19 @@ type AddTeamOwnerRes struct {
 	TeamID       uuid.UUID
 	UserID       string
 	FullName     string
-	Role         entity.UserRole
+	Role         entity.TeamMemberRole
 }
 
-type AddPlayerRes struct {
+type RegisterTeamMemberReq struct {
+	UserID string
+	Code   string
 }
 
-type AddPlayerReq struct {
+type RegisterTeamMemberRes struct {
+	InvitationID uuid.UUID
 }
 
-type AddStaffReq struct {
-}
-
-type AddStaffRes struct {
-}
-
-type AddManagerReq struct {
-}
-
-type AddManagerRes struct {
+type CompensateRegisterTeamMemberReq struct {
+	InvitationID uuid.UUID
+	TeamMemberID uuid.UUID
 }

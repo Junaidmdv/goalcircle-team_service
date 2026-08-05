@@ -1,7 +1,9 @@
 package team
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"time"
 
 	pb "github.com/Junaidmdv/goalcircle-protos/team/v1"
@@ -9,21 +11,27 @@ import (
 	teamsaga "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga/team"
 	team_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/validater"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type TeamHandler struct {
-	tu team_uc.TeamUsecase
+	teamUsecase team_uc.TeamUsecase
 	pb.UnimplementedTeamServiceServer
-	teamSaga teamsaga.TeamSagaMaker
-	timeOut  time.Duration
+	teamSaga  teamsaga.TeamSagaMaker
+	timeOut   time.Duration
+	validater *validater.Validater
 }
 
-func NewTeamHandler(tu team_uc.TeamUsecase, teamSaga teamsaga.TeamSagaMaker, timeout time.Duration) *TeamHandler {
+func NewTeamHandler(tu team_uc.TeamUsecase, teamSaga teamsaga.TeamSagaMaker, timeout time.Duration, validater *validater.Validater) *TeamHandler {
 	return &TeamHandler{
-		tu:       tu,
-		teamSaga: teamSaga,
-		timeOut:  timeout,
+		teamUsecase: tu,
+		teamSaga:    teamSaga,
+		timeOut:     timeout,
+		validater:   validater,
 	}
 }
 
@@ -32,9 +40,19 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 	context, cancel := context.WithTimeout(ctx, th.timeOut)
 	defer cancel()
 
+	request := ToCreateTeam(req)
+
+	if validationErrs := th.validater.Validation(request); validationErrs != nil {
+		stWithDetails, err := validater.ValidationError(validationErrs)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "failed to attach details")
+		}
+		return nil, stWithDetails.Err()
+	}
+
 	res, err := th.teamSaga.CreateTeamSaga(context, &teamsaga.TeamSagaState{
 		UserID:       req.Owner.UserId,
-		Role:         entity.OWNER,
+		Role:         entity.TEAM,
 		RefreshToken: req.RefreshToken,
 		TeamName:     req.Name,
 		City:         req.City,
@@ -72,9 +90,6 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 }
 
 func (th *TeamHandler) UpdateTeamDetails(ctx context.Context, req *pb.UpdateTeamReq) (*pb.UpdateTeamRes, error) {
-<<<<<<< Updated upstream
-	return nil, nil
-=======
 
 	context, cancel := context.WithTimeout(ctx, th.timeOut)
 	defer cancel()
@@ -201,15 +216,12 @@ func (th *TeamHandler) RegisterTeamMember(ctx context.Context, req *pb.RegisterT
 	return &pb.RegisterTeamMemberRes{}, nil
 }
 
-
-
-
 func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, pb.AddLogoRes]) error {
 
 	ctx := stream.Context()
 
 	var (
-		meta      *pb.TeamLogoMetaData
+		meta *pb.TeamLogoMetaData
 		buffer    bytes.Buffer
 		imagesize int64
 	)
@@ -231,6 +243,7 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 			if meta != nil {
 				return status.Error(codes.InvalidArgument, "logo meta data already send")
 			}
+
 			meta = data.MetaData
 
 		case *pb.AddLogoReq_Chunk:
@@ -259,10 +272,9 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 		return apperror.GRPCStatus(err)
 	}
 
-	return stream.SendAndClose(
-		&pb.AddLogoRes{
-			TeamId:      res.TeamID,
-			ResignedUrl: res.PresignedUrl,
-		})
->>>>>>> Stashed changes
+	return stream.SendAndClose(&pb.AddLogoRes{
+		TeamId:      res.TeamID,
+		ResignedUrl: res.PresignedUrl,
+	})
+
 }

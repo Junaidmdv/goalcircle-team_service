@@ -1,6 +1,7 @@
 package player
 
 import (
+	"bytes"
 	"time"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
@@ -8,13 +9,15 @@ import (
 )
 
 type AddPlayerReq struct {
-	TeamID       string 
+	TeamID       string
+	UserID       string
 	FullName     string
 	DOB          time.Time
 	JerseyNumber int32
 	Postion      entity.PlayerPosition
 	Height       float32
 	Weight       float32
+	ImageBytes   bytes.Buffer
 }
 
 type AddPlayerRes struct {

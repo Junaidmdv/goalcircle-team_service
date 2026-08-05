@@ -1,14 +1,18 @@
 package player
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"time"
 
 	pb "github.com/Junaidmdv/goalcircle-protos/team/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/usecase/player"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/imageutil"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/validater"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -22,46 +26,90 @@ type PlayerHandler struct {
 	pb.UnimplementedPlayerServiceServer
 }
 
-func (ph *PlayerHandler) AddNewPlayer(ctx context.Context, input *pb.AddPlayerReq) (*pb.AddPlayerRes, error) {
+func NewPlayerHandler(puc player.PlayerUsecase, logger logger.Logger, timeout *time.Duration, validater *validater.Validater) *PlayerHandler {
+	return &PlayerHandler{
+		playerUc:  puc,
+		logger:    logger,
+		timeout:   timeout,
+		validater: validater,
+	}
+}
+
+func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPlayerReq, pb.AddPlayerRes]) error {
+
+	ctx := stream.Context()
 
 	context, cancel := context.WithTimeout(ctx, *ph.timeout)
 	defer cancel()
 
-	data := ToAddPlayerReq(input)
+	var (
+		playerDetails *pb.PlayerDetails
+		buffer        bytes.Buffer
+	)
+
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return status.Errorf(codes.Internal, "failed to receive stream: %v", err)
+		}
+
+		switch data := req.Player.(type) {
+		case *pb.AddPlayerReq_PlayerDetails:
+			if playerDetails != nil {
+				return status.Error(codes.InvalidArgument, "player details already sent")
+			}
+			playerDetails = data.PlayerDetails
+		case *pb.AddPlayerReq_PlayerImageChunks:
+			if playerDetails == nil {
+				return status.Error(codes.InvalidArgument, "player details is missing")
+			}
+			buffer.Write(data.PlayerImageChunks)
+		}
+	}
+
+	if err := imageutil.ValidateImage(buffer.Bytes(), imageutil.PlayerImage); err != nil {
+		return apperror.GRPCStatus(err)
+	}
+
+	data := ToAddPlayerReq(playerDetails)
 
 	if validationError := ph.validater.Validation(data); validationError != nil {
 		stWithDetails, err := validater.ValidationError(validationError)
 		if err != nil {
-			return nil, status.Error(codes.InvalidArgument, "failed to attach details")
+			return status.Error(codes.InvalidArgument, "failed to attach details")
 		}
-		return nil, stWithDetails.Err()
+		return stWithDetails.Err()
 	}
 
 	playr, err := ph.playerUc.AddNewPlayer(context, &player.AddPlayerReq{
 		TeamID:       data.TeamID,
-		TeamMemberID: data.UserID,
-		FullName:     data.FullName,
+		UserID:       data.UserID,
 		DOB:          data.DateOfBirth,
 		JerseyNumber: data.JerseyNumber,
 		Postion:      data.Position,
 		Height:       data.Height,
 		Weight:       data.Weight,
+		ImageBytes:   buffer,
 	})
+
 	if err != nil {
-		return nil, apperror.GRPCStatus(err)
+		return apperror.GRPCStatus(err)
 	}
 
 	position := MapProtoPlayerPosition(playr.Position)
 	status := MapProtoPlayerStatus(playr.Status)
 
-	return &pb.AddPlayerRes{
+	return stream.SendAndClose(&pb.AddPlayerRes{
 		PlayerId:       playr.ID.String(),
 		TeamMemberId:   playr.TeamMemberID.String(),
 		FullName:       playr.FullName,
 		JerseyNumber:   playr.JerseyNumber,
 		PlayerStatus:   status,
 		PlayerPosition: position,
-	}, nil
+	})
 }
 
 func (ph *PlayerHandler) UpdateUserStatus(ctx context.Context, input *pb.UpdatePlayerStatusReq) (*pb.UpdatePlayerStatusRes, error) {
@@ -166,4 +214,8 @@ func (ph *PlayerHandler) GetPlayer(ctx context.Context, input *pb.GetPlayerReq) 
 		PlayerStatus:   playerStatus,
 		CreatedAt:      timestamppb.New(playerRes.CreatedAt),
 	}, nil
+}
+
+func (ph *PlayerHandler) ReleasePlayer(ctx context.Context, input *pb.ReleasePlayerReq) (*pb.ReleasePlayerRes, error) {
+	return nil, nil
 }

@@ -260,11 +260,20 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 
 	}
 
-	th.teamUsecase.UploadLogo(ctx, &team_uc.UploadLogoReq{
+	res, err := th.teamUsecase.UploadLogo(ctx, &team_uc.UploadLogoReq{
 		TeamID:      meta.MetaData.TeamId,
-		LogoData:        buffer.Bytes(),
+		LogoData:    buffer.Bytes(),
 		ContentType: meta.MetaData.ContentType,
 		Size:        imagesize,
+	})
+
+	if err != nil {
+		return apperror.GRPCStatus(err)
+	}
+
+	return stream.SendAndClose(&pb.AddLogoRes{
+		TeamId:      res.TeamID,
+		ResignedUrl: res.PresignedUrl,
 	})
 
 }

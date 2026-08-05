@@ -20,14 +20,14 @@ type CreateTeamReq struct {
 }
 
 type UpdateTeamDetailsReq struct {
-	TeamID       string
-	TeamMemberID string
-	Name         *string
-	City         *string
-	Description  *string
-	ShortName    *string
-	PhoneNum     *string
-	Email        *string
+	TeamID      string
+	UserID      string
+	Name        *string
+	City        *string
+	Description *string
+	ShortName   *string
+	PhoneNum    *string
+	Email       *string
 }
 
 type UpdateTeamDetailsRes struct {
@@ -106,7 +106,13 @@ type GetTeamRes struct {
 }
 
 type UploadLogoReq struct {
+	TeamID      string
+	LogoData       []byte
+	ContentType string
+	Size        int64
 }
 
 type UploadLogoRes struct {
+	TeamID      string
+	ResignedUrl string
 }

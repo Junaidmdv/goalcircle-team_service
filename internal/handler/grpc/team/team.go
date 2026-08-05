@@ -1,7 +1,9 @@
 package team
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"time"
 
 	pb "github.com/Junaidmdv/goalcircle-protos/team/v1"
@@ -10,6 +12,7 @@ import (
 	team_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/validater"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -45,8 +48,7 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 			return nil, status.Error(codes.InvalidArgument, "failed to attach details")
 		}
 		return nil, stWithDetails.Err()
-	}  
-
+	}
 
 	res, err := th.teamSaga.CreateTeamSaga(context, &teamsaga.TeamSagaState{
 		UserID:       req.Owner.UserId,
@@ -102,14 +104,14 @@ func (th *TeamHandler) UpdateTeamDetails(ctx context.Context, req *pb.UpdateTeam
 	}
 
 	res, err := th.teamUsecase.UpdateTeamDetails(context, &team_uc.UpdateTeamDetailsReq{
-		TeamID:       req.TeamId,
-		TeamMemberID: req.TeamMemberId,
-		Name:         req.Name,
-		City:         req.City,
-		Description:  req.Description,
-		ShortName:    req.ShortName,
-		Email:        req.Email,
-		PhoneNum:     req.PhoneNumber,
+		TeamID:      req.TeamId,
+		UserID:      req.UserId,
+		Name:        req.Name,
+		City:        req.City,
+		Description: req.Description,
+		ShortName:   req.ShortName,
+		Email:       req.Email,
+		PhoneNum:    req.PhoneNumber,
 	})
 
 	if err != nil {
@@ -124,8 +126,6 @@ func (th *TeamHandler) UpdateTeamDetails(ctx context.Context, req *pb.UpdateTeam
 		ShortName:   res.ShortName,
 	}, nil
 }
-
-
 
 func (th *TeamHandler) SetCaption(ctx context.Context, req *pb.SetCaptainReq) (*pb.SetCaptainRes, error) {
 	context, cancel := context.WithTimeout(ctx, th.timeOut)
@@ -212,6 +212,59 @@ func (th *TeamHandler) ListTeams(ctx context.Context, req *pb.ListTeamReq) (*pb.
 
 }
 
-func (th TeamHandler) RegisterTeamMember(ctx context.Context, req *pb.RegisterTeamMemberReq) (*pb.RegisterTeamMemberRes, error) {
+func (th *TeamHandler) RegisterTeamMember(ctx context.Context, req *pb.RegisterTeamMemberReq) (*pb.RegisterTeamMemberRes, error) {
 	return &pb.RegisterTeamMemberRes{}, nil
+}
+
+func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, pb.AddLogoRes]) error {
+
+	ctx := stream.Context()
+
+	var (
+		meta      *pb.AddLogoReq_MetaData
+		buffer    bytes.Buffer
+		imagesize int64
+	)
+
+	ctx, cancel := context.WithTimeout(ctx, th.timeOut)
+	defer cancel()
+
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		switch data := req.Data.(type) {
+		case *pb.AddLogoReq_MetaData:
+			if meta != nil {
+				return status.Error(codes.InvalidArgument, "logo meta data already send")
+			}
+			meta = data
+
+		case *pb.AddLogoReq_Chunk:
+			if meta == nil {
+				return status.Error(codes.InvalidArgument, "logo meta data is missing")
+			}
+			buffer.Write(data.Chunk)
+			size := len(data.Chunk)
+			imagesize += int64(size)
+
+			if imagesize > 1<<entity.PictureMaxLen {
+				return status.Error(codes.InvalidArgument, "logo size exceeds maximum size")
+			}
+		}
+
+	}
+
+	th.teamUsecase.UploadLogo(ctx, &team_uc.UploadLogoReq{
+		TeamID:      meta.MetaData.TeamId,
+		LogoData:        buffer.Bytes(),
+		ContentType: meta.MetaData.ContentType,
+		Size:        imagesize,
+	})
+
 }

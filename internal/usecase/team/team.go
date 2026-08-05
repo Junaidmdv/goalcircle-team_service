@@ -2,6 +2,7 @@ package team
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/permission"
@@ -9,6 +10,7 @@ import (
 	team_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/storage"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"github.com/google/uuid"
@@ -18,7 +20,6 @@ type TeamUsecase interface {
 	CreateTeam(context.Context, *CreateTeamReq) (*CreateTeamRes, error)
 	DeleteTeam(context.Context, uuid.UUID) error
 	UpdateTeamDetails(context.Context, *UpdateTeamDetailsReq) (*UpdateTeamDetailsRes, error)
-	// UpdateTeamContactDetails(context.Context, *UpdateTeamContactDetailsReq) (*UpdateTeamContactDetailsRes, error)
 	ListTeams(context.Context, *ListTeamsReq) (*ListTeamsRes, error)
 	ChangeCaptain(context.Context, *ChangeCaptainReq) (*ChangeCaptainRes, error)
 	ChangeViceCaptain(context.Context, *ChangeViceCaptainReq) (*ChangeViceCaptainRes, error)
@@ -30,8 +31,8 @@ type teamUsecase struct {
 	teamMemberRepo teammember.TeamMemberRepository
 	logger         logger.Logger
 	code           code.CodeGenerater
-	playerRepo     playerrepo.PlayerRepository 
-	
+	playerRepo     playerrepo.PlayerRepository
+	objectStore    storage.ObjectStorage
 }
 
 func NewTeamUsecase(teamrepo team_repo.TeamRepository, logger logger.Logger, code code.CodeGenerater, tmrepo teammember.TeamMemberRepository, playerepo playerrepo.PlayerRepository) TeamUsecase {
@@ -85,7 +86,7 @@ func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDet
 		return nil, apperror.NewFailedPreCondition("invalid team id")
 	}
 
-	teamMemberID, err := uuid.Parse(req.TeamMemberID)
+	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
 		return nil, apperror.NewFailedPreCondition("invalid team member id")
 	}
@@ -98,17 +99,15 @@ func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDet
 	permitted := permission.HasPermissionTeam(role, permission.PermissionUpdateTeamDetails)
 	if !permitted {
 		return nil, apperror.NewPermissionDenied("user not allowed to update team details")
-	} 
+	}
 
-	if req.Name != nil{
-        *req.Name=FormatTeamName(*req.Name)
+	if req.Name != nil {
+		*req.Name = FormatTeamName(*req.Name)
 	}
 
 	if req.Name != nil && req.ShortName == nil {
 		*req.ShortName = tu.code.GenerateShortName(*req.Name)
 	}
- 
-
 
 	team, err := tu.teamRepo.UpdateTeamDetails(ctx, teamId, &team_repo.UpdateTeamReq{
 		TeamID:      teamId,
@@ -128,8 +127,6 @@ func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDet
 		ShortName:   team.ShortName,
 	}, nil
 }
-
-
 
 func (tu *teamUsecase) ChangeCaptain(ctx context.Context, req *ChangeCaptainReq) (*ChangeCaptainRes, error) {
 
@@ -265,5 +262,26 @@ func (tu *teamUsecase) GetTeam(ctx context.Context, req *GetTeamReq) (*GetTeamRe
 }
 
 func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*UploadLogoRes, error) {
+
+	id, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewInvalidArgumentError("invalid team id")
+	}
+
+	exist, err := tu.teamRepo.IsTeamExist(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, apperror.NewNotFoundError("team is not found in this id")
+	}
+
+	contentType := http.DetectContentType(req.LogoData)
+
+	if err = ImageAllowedFormate(contentType); err != nil {
+		return nil, err
+	}
+
 	return &UploadLogoRes{}, nil
 }

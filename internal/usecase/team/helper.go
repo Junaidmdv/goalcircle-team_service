@@ -1,10 +1,9 @@
-package team 
-
-
+package team
 
 import (
 	"strings"
 
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -27,4 +26,18 @@ func FormatTeamName(name string) string {
 	)
 
 	return replacer.Replace(name)
+}
+
+func ImageAllowedFormate(mimetype string) error {
+	allowedImageFormate := map[string]struct{}{
+		"image/jpg":  {},
+		"image/webp": {},
+		"image/png":  {},
+	}
+
+	if _, ok := allowedImageFormate[mimetype]; !ok {
+		return apperror.NewInvalidArgumentError("unsupported image content type")
+	}
+
+	return nil
 }

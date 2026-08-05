@@ -49,7 +49,7 @@ func ToCreateTeam(req *pb.CreateTeamReq) *CreateTeamReq {
 func ToUpdateTeam(rq *pb.UpdateTeamReq) *UpdateTeamDetailsReq {
 	return &UpdateTeamDetailsReq{
 		TeamID:       rq.TeamId,
-		TeamMemberID: rq.TeamMemberId,
+		UserID: rq.UserId,
 		Name:         *rq.Name,
 		City:         *rq.City,
 		Description:  *rq.City,

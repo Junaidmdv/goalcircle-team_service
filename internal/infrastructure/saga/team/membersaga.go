@@ -23,6 +23,7 @@ type teamMemberSaga struct {
 
 type TeamMemberSagaState struct {
 	UserID       string
+	Code         string
 	Role         entity.UserRole
 	RefreshToken string
 	AddUserRes   *AddUserRoleRes
@@ -37,6 +38,19 @@ func (tm *teamMemberSaga) RegisterTeamMember(ctx context.Context, req *TeamMembe
 		{
 			Name: "team member",
 			Action: func(ctx context.Context, sagaState interface{}) error {
+
+				r := sagaState.(*TeamMemberSagaState)
+
+				_,err:=tm.teamMemberUc.RegisterTeamMember(ctx, &teammemberuc.RegisterTeamMemberReq{
+					UserID: r.UserID,
+					Code:   r.Code,
+				})
+
+				if err != nil{
+					return err 
+				}
+
+
 				return nil
 			},
 			Compensate: func(ctx context.Context, sagaState interface{}) error {

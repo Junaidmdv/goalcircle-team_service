@@ -23,10 +23,11 @@ type staffUsecase struct {
 	date           datetime.DateCalculator
 }
 
-func NewTeamStaffUsecase(tm teammember.TeamMemberRepository, sr staffrepo.StaffRepository) StaffUsecase {
+func NewTeamStaffUsecase(tm teammember.TeamMemberRepository, sr staffrepo.StaffRepository,date datetime.DateCalculator) StaffUsecase {
 	return &staffUsecase{
 		teamMemberRepo: tm,
-		staffRepo:      sr,
+		staffRepo:      sr, 
+		date: date,
 	}
 }
 
@@ -63,11 +64,11 @@ func (tm *staffUsecase) AddStaff(ctx context.Context, req *AddStaffReq) (*AddSta
 	age := tm.date.CalculateAge(req.DOB)
 
 	return &AddStaffRes{
-		StaffID:     staff.ID,
+		StaffID:      staff.ID,
 		TeamMemberID: teamMember.ID,
-		FullName:    staff.FullName,
-		Age:         age,
-		Designation: req.Designation,
+		FullName:     staff.FullName,
+		Age:          age,
+		Designation:  req.Designation,
 	}, nil
 }
 

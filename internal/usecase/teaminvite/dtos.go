@@ -9,7 +9,6 @@ import (
 type TeamInviteReq struct {
 	UserID       string
 	TeamMemberID string
-	Role         string
 }
 
 type TeamInviteRes struct {

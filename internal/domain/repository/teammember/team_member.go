@@ -17,8 +17,10 @@ type TeamMemberRepository interface {
 	UpdateUserID(context.Context, *uuid.UUID, string) error
 	GetTeamMemeberRole(context.Context, uuid.UUID, uuid.UUID) (entity.TeamMemberRole, error)
 	GetStaffDesignation(context.Context, string) (entity.StaffDesignation, error)
-	IsTeamMemberExist(context.Context, string) (bool, error)
+	IsTeamMemberExist(context.Context, uuid.UUID, uuid.UUID) (bool, error)
 	DeleteTeamMember(context.Context, uuid.UUID, uuid.UUID) error
+	GetActiveTeamMemberByUserID(context.Context, uuid.UUID) (*entity.TeamMember, error)
+	GetTeamMemberByID(context.Context, uuid.UUID) (*entity.TeamMember, error)
 }
 
 type teamMemberRepository struct {
@@ -33,11 +35,11 @@ func NewTeamMemberRepository(db *gorm.DB, logger logger.Logger) TeamMemberReposi
 	}
 }
 
-func (tm *teamMemberRepository) IsTeamMemberExist(ctx context.Context, userID string) (bool, error) {
+func (tm *teamMemberRepository) IsTeamMemberExist(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) (bool, error) {
 	var count int64
 	err := tm.db.WithContext(ctx).
 		Model(&entity.TeamMember{}).
-		Where("user_id=? ", userID).
+		Where("team_id=? AND user_id=? ", teamID, userID).
 		Count(&count).Error
 	if err != nil {
 		tm.logger.Error("database error", "error", err, "method", "teamMemberRepo.IsTeamMemberExist")
@@ -86,7 +88,7 @@ func (tm *teamMemberRepository) GetTeamMemeberRole(
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return "", apperror.NewNotFoundError("team member not found")
+			return "", apperror.NewNotFoundError("team member not found or release from team")
 		}
 
 		tm.logger.Error("database error", "error", result.Error)
@@ -134,4 +136,46 @@ func (tr *teamMemberRepository) DeleteTeamMember(ctx context.Context, teamID uui
 	}
 
 	return nil
+}
+
+func (tr *teamMemberRepository) GetActiveTeamMemberByUserID(
+	ctx context.Context,
+	userID uuid.UUID,
+) (*entity.TeamMember, error) {
+
+	var teamMember entity.TeamMember
+
+	err := tr.db.WithContext(ctx).
+		Where("user_id = ? AND status = ?", userID, entity.TeamMemberStatusActive).
+		First(&teamMember).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.NewNotFoundError("team member is not found")
+		}
+		return nil, err
+	}
+
+	return &teamMember, nil
+}
+
+func (tr *teamMemberRepository) GetTeamMemberByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (*entity.TeamMember, error) {
+
+	var teamMember entity.TeamMember
+
+	err := tr.db.WithContext(ctx).
+		Where("id = ?", id).
+		First(&teamMember).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.NewNotFoundError("team member not found")
+		}
+		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+
+	return &teamMember, nil
 }

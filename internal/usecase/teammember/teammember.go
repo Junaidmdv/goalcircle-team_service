@@ -35,7 +35,11 @@ func NewTeamMemberUsecase(tmr teammember.TeamMemberRepository, ti teaminvite.Tea
 
 func (tm *teamMemberUsecase) AddTeamOwner(ctx context.Context, req *AddTeamOwnerReq) (*AddTeamOwnerRes, error) {
 
-	exist, err := tm.teamMemberRepo.IsTeamMemberExist(ctx, req.UserId)
+	userID,err:=uuid.Parse(req.UserId) 
+	if err != nil{
+		return nil,apperror.NewInvalidArgumentError("invalid user id")
+	}
+	exist, err := tm.teamMemberRepo.IsTeamMemberExist(ctx,req.TeamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -49,6 +53,7 @@ func (tm *teamMemberUsecase) AddTeamOwner(ctx context.Context, req *AddTeamOwner
 		TeamID:   req.TeamID,
 		FullName: req.FullName,
 		Role:     entity.TeamMemberRoleOwner,
+		Status:   entity.TeamMemberStatusActive,
 	})
 
 	if err != nil {

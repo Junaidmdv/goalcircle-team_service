@@ -15,6 +15,7 @@ var errTypeToGRPCCode = map[ErrorType]codes.Code{
 	ErrorUnAuthenticated:    codes.Unauthenticated,
 	ErrorFailedPrecondition: codes.FailedPrecondition,
 	ErrorPermissionDenied:   codes.PermissionDenied,
+	ErrorBadRequest:         codes.InvalidArgument,
 }
 
 func GRPCStatus(err error) error {

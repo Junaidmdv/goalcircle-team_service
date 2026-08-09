@@ -29,6 +29,7 @@ import (
 	playerHandler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/player"
 	staffHandler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/staff"
 
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/datetime"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/validater"
 
@@ -75,6 +76,8 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	}
 	codeGenerater := code.NewCodeGenerater(entity.CodeLength)
 
+	datecalculater := datetime.NewDateCalculator()
+
 	teamRepository := team_repo.NewTeamRepository(psqldb.DB, gs.logger)
 	TeamMemberRepository := teammember_repo.NewTeamMemberRepository(psqldb.DB, gs.logger)
 	staffRepository := staffrepo.NewStaffRepository(psqldb.DB, gs.logger)
@@ -83,9 +86,9 @@ func (gs *GRPCServer) BootstrapSetup() error {
 
 	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater, TeamMemberRepository, playerRepo, objectStorage, gs.Config.StorageConfig)
 	teamMemberUc := teammemberuc.NewTeamMemberUsecase(TeamMemberRepository, teamInviteRepo, gs.logger)
-	teamStaffUc := staffuc.NewTeamStaffUsecase(TeamMemberRepository, staffRepository)
+	teamStaffUc := staffuc.NewTeamStaffUsecase(TeamMemberRepository, staffRepository, datecalculater)
 	playerUc := playeruc.NewPlayerUsecase(playerRepo, TeamMemberRepository, teamRepository, gs.logger, objectStorage, gs.Config.StorageConfig, codeGenerater)
-	teaminviteUc := inviteuc.NewTeamInviteUsecase(teamInviteRepo)
+	teaminviteUc := inviteuc.NewTeamInviteUsecase(teamInviteRepo, codeGenerater, TeamMemberRepository)
 
 	userclient, err := userclientcon.NewUserGRPCClient(gs.Config.UserSrv, gs.logger)
 	if err != nil {
@@ -98,11 +101,12 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut, validater)
 	playerHandler := playerHandler.NewPlayerHandler(playerUc, gs.logger, &gs.Config.Server.TimeOut, validater)
 	staffHandler := staffHandler.NewStaffHandler(teamStaffUc, gs.Config.Server.TimeOut)
-	inviteHandler.NewTeamInviteHandler(teaminviteUc, gs.Config.Server.TimeOut)
+	inviteHandler := inviteHandler.NewTeamInviteHandler(teaminviteUc, gs.Config.Server.TimeOut)
 
 	teamv1.RegisterTeamServiceServer(gs.Server, teamHandler)
 	teamv1.RegisterPlayerServiceServer(gs.Server, playerHandler)
 	teamv1.RegisterStaffServiceServer(gs.Server, staffHandler)
+	teamv1.RegisterTeamInviteServer(gs.Server, inviteHandler)
 
 	return nil
 }

@@ -3,6 +3,7 @@ package validater
 import (
 	"regexp"
 
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -28,14 +29,17 @@ func passwordValidation(fl validator.FieldLevel) bool {
 	return hasUpper && hasLower && hasNumber && hasSpecial && hasMinLen
 }
 
-func playerPositionvalidater(fl validator.FieldLevel) bool {
-	return fl.Field().String() != "unspecified"
+func playerPositionValidator(fl validator.FieldLevel) bool {
+	return entity.PlayerPosition(fl.Field().String()) != entity.PositionUnspecified
+}
+func playerStatusValidater(fl validator.FieldLevel) bool {
+	return entity.PlayerStatus(fl.Field().String()) != entity.PlayerStatusInvalid
 }
 
 func teamNameValidation(fl validator.FieldLevel) bool {
 
 	teamName := fl.Field().String()
-	regex := ``
-	match, _ := regexp.MatchString(teamName, regex)
+	regex := `^[A-Za-z0-9][A-Za-z0-9 .'-]{2,49}$`
+	match, _ := regexp.MatchString(regex, teamName)
 	return match
 }

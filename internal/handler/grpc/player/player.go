@@ -45,7 +45,6 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 	var (
 		playerDetails *pb.PlayerDetails
 		buffer        bytes.Buffer
-		imageSize     int
 	)
 
 	for {
@@ -68,7 +67,6 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 				return status.Error(codes.InvalidArgument, "player details is missing")
 			}
 			buffer.Write(data.PlayerImageChunks)
-			imageSize += len(data.PlayerImageChunks)
 		}
 	}
 
@@ -90,6 +88,7 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 	playr, err := ph.playerUc.AddNewPlayer(context, &player.AddPlayerReq{
 		TeamID:       data.TeamID,
 		UserID:       data.UserID,
+		FullName:     data.FullName,
 		DOB:          data.DateOfBirth,
 		JerseyNumber: data.JerseyNumber,
 		Postion:      data.Position,
@@ -97,7 +96,6 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 		Weight:       data.Weight,
 		ImageBytes:   buffer.Bytes(),
 		ContentType:  contentType,
-		ImageSize:    imageSize,
 	})
 
 	if err != nil {
@@ -112,12 +110,13 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 		TeamMemberId:   playr.TeamMemberID.String(),
 		FullName:       playr.FullName,
 		JerseyNumber:   playr.JerseyNumber,
-		PlayerStatus:   status,
-		PlayerPosition: position,
+		PlayerStatus:   status.String(),
+		PlayerPosition: position.String(),
+		PresignedUrl:   playr.PresignedUrl,
 	})
 }
 
-func (ph *PlayerHandler) UpdateUserStatus(ctx context.Context, input *pb.UpdatePlayerStatusReq) (*pb.UpdatePlayerStatusRes, error) {
+func (ph *PlayerHandler) UpdatePlayerStatus(ctx context.Context, input *pb.UpdatePlayerStatusReq) (*pb.UpdatePlayerStatusRes, error) {
 	context, cancel := context.WithTimeout(ctx, *ph.timeout)
 	defer cancel()
 	data := ToUpdateStatusReq(input)
@@ -142,7 +141,8 @@ func (ph *PlayerHandler) UpdateUserStatus(ctx context.Context, input *pb.UpdateP
 	ph.logger.Info("user login succefull", "response", res)
 
 	return &pb.UpdatePlayerStatusRes{
-		Success: res.Success,
+		PlayerId:     res.PlayerID,
+		PlayerStatus: string(res.Status),
 	}, nil
 }
 
@@ -150,8 +150,16 @@ func (ph *PlayerHandler) ListTeamPlayer(ctx context.Context, input *pb.ListTeamP
 	context, cancel := context.WithTimeout(ctx, *ph.timeout)
 	defer cancel()
 
+	status := MapPlayerStatus(*input.PlayerStatus)
+	position := MapPlayerPosition(*input.Position)
+
 	users, Paginates, err := ph.playerUc.ListTeamPlayers(context, &player.ListTeamPlayersReq{
-		TeamID: input.TeamId,
+		TeamID:       input.TeamId,
+		Page:         input.Page,
+		Limit:        input.Limit,
+		PlayerStatus: status,
+		Position:     position,
+		Search:       *input.Search,
 	})
 	if err != nil {
 		return nil, apperror.GRPCStatus(err)
@@ -171,7 +179,7 @@ func (ph *PlayerHandler) ListTeamPlayer(ctx context.Context, input *pb.ListTeamP
 	}
 
 	paginateDetails := &pb.PaginationDetails{
-		TotalPage: int32(Paginates.Total),
+		TotalPage: int32(Paginates.TotalPage),
 		Limit:     Paginates.Limit,
 		TotalItem: Paginates.Total,
 		Page:      Paginates.Page,
@@ -222,5 +230,89 @@ func (ph *PlayerHandler) GetPlayer(ctx context.Context, input *pb.GetPlayerReq) 
 }
 
 func (ph *PlayerHandler) ReleasePlayer(ctx context.Context, input *pb.ReleasePlayerReq) (*pb.ReleasePlayerRes, error) {
-	return nil, nil
+	res, err := ph.playerUc.ReleasePlayer(ctx, &player.ReleasePlayerReq{
+		UserID:   input.UserId,
+		TeamID:   input.TeamId,
+		PlayerID: input.PlayerId,
+	})
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
+	return &pb.ReleasePlayerRes{
+		Success: res.Success,
+	}, nil
+}
+
+func (ph *PlayerHandler) UpdatePlayerImage(stream grpc.ClientStreamingServer[pb.UpdatePlayerImageReq, pb.UpdatePlayerImageRes]) error {
+	ctx := stream.Context()
+
+	ctx, cancel := context.WithTimeout(ctx, *ph.timeout)
+	defer cancel()
+
+	var (
+		metadata *pb.UpdatePlayerImageMeta
+		buffer   bytes.Buffer
+	)
+
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return status.Errorf(codes.Internal, "failed to receive stream: %v", err)
+		}
+
+		switch data := req.Data.(type) {
+		case *pb.UpdatePlayerImageReq_Meta:
+			if metadata != nil {
+				return status.Error(codes.InvalidArgument, "player details already sent")
+			}
+			metadata = data.Meta
+		case *pb.UpdatePlayerImageReq_Chunks:
+			if metadata == nil {
+				return status.Error(codes.InvalidArgument, "player details is missing")
+			}
+			buffer.Write(data.Chunks)
+		}
+	}
+	contentType, err := imageutil.ValidateImage(buffer.Bytes(), imageutil.PlayerImage)
+	if err != nil {
+		return apperror.GRPCStatus(err)
+	}
+
+	res, err := ph.playerUc.UpdateImage(ctx, &player.UpdatePlayerImageReq{
+		UserID:      metadata.UserId,
+		TeamID:      metadata.TeamId,
+		PlayerID:    metadata.PlayerId,
+		ImageData:   buffer.Bytes(),
+		ContentType: contentType,
+	})
+
+	return stream.SendAndClose(&pb.UpdatePlayerImageRes{
+		TeamId:       res.TeamID,
+		PlayerId:     res.PlayerID,
+		PresignedUrl: res.PresignedUrl,
+	})
+
+}
+
+func (ph *PlayerHandler) GetPlayerPresignedUrl(ctx context.Context, req *pb.GetPlayerPresignedUrlReq) (*pb.GetPlayerPresignedUrlRes, error) {
+	ctx, cancel := context.WithTimeout(ctx, *ph.timeout)
+	defer cancel()
+
+	res, err := ph.playerUc.GetPlayerPresignedUrl(ctx, &player.GetPlayerPresignedUrlReq{
+		UserID:   req.UserId,
+		PlayerID: req.PlayerId,
+		TeamID:   req.TeamId,
+	})
+
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
+	return &pb.GetPlayerPresignedUrlRes{
+		TeamId:       res.TeamID,
+		PlayerId:     res.PlayerId,
+		PresignedUrl: res.PresignedUrl,
+	}, nil
 }

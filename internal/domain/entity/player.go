@@ -9,11 +9,11 @@ import (
 type PlayerStatus string
 
 const (
-	PlayerStatusActive              PlayerStatus = "ACTIVE"
-	PlayerStatusInjured             PlayerStatus = "INJURED"
-	PlayerStatusSuspended           PlayerStatus = "SUSPENDED"
-	PlayerStatusReleased            PlayerStatus = "RELEASED"
-	PlayerStatusPendingActionvation PlayerStatus = "PENDING_ACTIVATION"
+	PlayerStatusActive    PlayerStatus = "ACTIVE"
+	PlayerStatusInjured   PlayerStatus = "INJURED"
+	PlayerStatusSuspended PlayerStatus = "SUSPENDED"
+	PlayerStatusReleased  PlayerStatus = "RELEASED"
+	PlayerStatusInvalid   PlayerStatus = "INVALID"
 )
 
 type PlayerPosition string

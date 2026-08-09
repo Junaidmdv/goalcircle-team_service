@@ -19,7 +19,7 @@ type PlayerRepository interface {
 	GetPlayerStatus(context.Context, uuid.UUID, uuid.UUID) (entity.PlayerStatus, error)
 	UpdateImageKey(context.Context, uuid.UUID, string) error
 	IsPlayerExist(context.Context, uuid.UUID) (bool, error)
-	ReleasePlayer(context.Context, uuid.UUID) error
+	ReleasePlayer(context.Context, uuid.UUID) error 
 }
 
 type playerRepository struct {
@@ -61,7 +61,7 @@ func (pr *playerRepository) GetTeamPlayers(ctx context.Context, details *ListUse
 	var total int64
 	var users []entity.Player
 
-	query := pr.db.WithContext(ctx).Scopes(
+	query := pr.db.WithContext(ctx).Model(&entity.Player{}).Joins("JOIN team_members tm ON players.team_member_id=tm.id ").Scopes(
 		Search(details.Search),
 		GetTeamPlayers(details.TeamID),
 		filterByPlayerStatus(details.PlayerStatus),
@@ -84,7 +84,7 @@ func (pr *playerRepository) GetTeamPlayers(ctx context.Context, details *ListUse
 
 	}
 
-	return users, -1, nil
+	return users, total, nil
 }
 
 func (pr *playerRepository) GetPlayer(ctx context.Context, playerID *uuid.UUID) (*entity.Player, error) {
@@ -125,7 +125,7 @@ func (pr *playerRepository) GetPlayerStatus(ctx context.Context, teamID uuid.UUI
 
 func (pr *playerRepository) UpdateImageKey(ctx context.Context, playerID uuid.UUID, key string) error {
 
-	result := pr.db.WithContext(ctx).Model(&entity.Player{}).Where("id=?", playerID).Update("player_image_key=?", key)
+	result := pr.db.WithContext(ctx).Model(&entity.Player{}).Where("id=?", playerID).Update("image_key", key)
 
 	if result.Error != nil {
 		pr.logger.Error(
@@ -162,7 +162,7 @@ func (pr *playerRepository) ReleasePlayer(ctx context.Context, playerID uuid.UUI
 	result := pr.db.WithContext(ctx).Model(&entity.Player{}).Where("id=?", playerID).Update("status", entity.PlayerStatusReleased)
 
 	if result.Error == nil {
-		pr.logger.Error("database failure", "method", "release player", "error", result.Error)
+		pr.logger.Error("databahttp://localhost:9000/goalcircle-media//players/800fe6df-0ee5-4a77-a1aa-3493c9ec0668/logo.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=minioadmin%2F20260806%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260806T234005Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=4d20f589dd165faefb524255d5a0d91f3a57875cf7dafb1d29b9af1913f58b48se failure", "method", "release player", "error", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -171,3 +171,4 @@ func (pr *playerRepository) ReleasePlayer(ctx context.Context, playerID uuid.UUI
 
 	return nil
 }
+

@@ -8,19 +8,25 @@ import (
 
 func GetTeamPlayers(teamID uuid.UUID) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("team_id=?", teamID)
+		return db.Where("tm.team_id=?", teamID)
 	}
 }
 
-func filterByPlayerStatus(status entity.PlayerStats) func(*gorm.DB) *gorm.DB {
+func filterByPlayerStatus(status entity.PlayerStatus) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("status=?", status)
+		if status == entity.PlayerStatusInvalid {
+			return db
+		}
+		return db.Where("players.status=?", status)
 	}
 }
 
 func filterByPosition(position entity.PlayerPosition) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("position=?", position)
+		if position == entity.PositionUnspecified {
+			return db
+		}
+		return db.Where("players.position=?", position)
 	}
 }
 
@@ -37,12 +43,19 @@ func Search(search string) func(*gorm.DB) *gorm.DB {
 			return db
 		}
 
-		search = "%" + search + "%"
+		if id, err := uuid.Parse(search); err == nil {
+			db = db.Where(
+				"players.id = ? OR players.full_name ILIKE ?",
+				id,
+				"%"+search+"%",
+			)
+		} else {
+			db = db.Where(
+				"players.full_name ILIKE ?",
+				"%"+search+"%",
+			)
+		}
 
-		return db.Where(
-			"id ILIKE ? OR full_name ILIKE ?",
-			search,
-			search,
-		)
+		return db
 	}
 }

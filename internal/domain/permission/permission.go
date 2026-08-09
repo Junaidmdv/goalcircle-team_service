@@ -11,4 +11,5 @@ const (
 	PermissionApointCaptain            Permission = "APOINT_CAPTAIN"
 	PermissionApointVicecaptain        Permission = "APOINT_VICECAPTAIN"
 	PermissionAddTeamPlayerImage       Permission = "ADD_PLAYER_IMAGE"
+	PermissionCreateInvite             Permission = "CREATE_INVITE"
 )

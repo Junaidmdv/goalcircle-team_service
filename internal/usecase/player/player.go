@@ -24,6 +24,9 @@ type PlayerUsecase interface {
 	UpdatePlayerStatus(context.Context, *UpdatPlayerStatusReq) (*UpdatePlayerStatusRes, error)
 	ListTeamPlayers(context.Context, *ListTeamPlayersReq) ([]PlayerRes, *PaginateDetails, error)
 	GetPlayer(context.Context, *GetPlayerReq) (*GetPlayerRes, error)
+	UpdateImage(context.Context, *UpdatePlayerImageReq) (*UpdatePlayerImageRes, error)
+	GetPlayerPresignedUrl(context.Context, *GetPlayerPresignedUrlReq) (*GetPlayerPresignedUrlRes, error)
+	ReleasePlayer(context.Context, *ReleasePlayerReq) (*ReleasePlayerRes, error)
 }
 
 type playerUsecase struct {
@@ -76,6 +79,11 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 		return nil, apperror.NewFailedPreCondition("user are not authorized to add players")
 	}
 
+	jerseyNumTaken, err := pu.teamRepository.IsJerseyNumOccupied(ctx, teamID, input.JerseyNumber)
+	if jerseyNumTaken {
+		return nil, apperror.NewBadRequestError("jerey number already taken by the active player.")
+	}
+
 	teamMember, err := pu.teamMemberRepo.AddTeamMember(ctx, &entity.TeamMember{
 		ID:       uuid.New(),
 		TeamID:   teamID,
@@ -96,7 +104,7 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 		Position:     input.Postion,
 		Height:       input.Height,
 		Weight:       input.Weight,
-		Status:       entity.PlayerStatusPendingActionvation,
+		Status:       entity.PlayerStatusActive,
 	})
 
 	if err != nil {
@@ -110,7 +118,7 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 
 	objectName := fmt.Sprintf("/players/%s/logo.webp", playerRes.ID)
 
-	key, err := pu.ObjectStorage.Upload(ctx, pu.ObjectStorageConfig.Bucket, objectName, bytes.NewReader(webpBytes), int64(input.ImageSize), input.ContentType)
+	key, err := pu.ObjectStorage.Upload(ctx, pu.ObjectStorageConfig.Bucket, objectName, bytes.NewReader(webpBytes), int64(len(webpBytes)), input.ContentType)
 
 	if err != nil {
 		return nil, err
@@ -120,6 +128,8 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 		return nil, err
 	}
 
+	presignedUrl, err := pu.ObjectStorage.GetPresignedURL(ctx, pu.ObjectStorageConfig.Bucket, objectName, pu.ObjectStorageConfig.PresignedURLExpiry)
+
 	return &AddPlayerRes{
 		ID:           playerRes.ID,
 		TeamMemberID: playerRes.TeamMemberID,
@@ -127,6 +137,7 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 		JerseyNumber: playerRes.JerseyNumber,
 		Position:     playerRes.Position,
 		Status:       playerRes.Status,
+		PresignedUrl: presignedUrl,
 	}, nil
 
 }
@@ -143,7 +154,8 @@ func (pu *playerUsecase) UpdatePlayerStatus(ctx context.Context, input *UpdatPla
 		return nil, err
 	}
 	return &UpdatePlayerStatusRes{
-		Success: true,
+		PlayerID: input.PlayerID,
+		Status:   input.Status,
 	}, nil
 }
 
@@ -238,6 +250,9 @@ func (pu *playerUsecase) ReleasePlayer(ctx context.Context, input *ReleasePlayer
 	}
 
 	userID, err := uuid.Parse(input.UserID)
+	if err != nil {
+		return nil, apperror.NewInvalidArgumentError("invalid user id")
+	}
 
 	if err := pu.teamMemberRepo.DeleteTeamMember(ctx, teamID, userID); err != nil {
 		return nil, err
@@ -247,9 +262,13 @@ func (pu *playerUsecase) ReleasePlayer(ctx context.Context, input *ReleasePlayer
 	if err != nil {
 		return nil, apperror.NewInvalidArgumentError("invalid player id")
 	}
-	pu.playerRepository.ReleasePlayer(ctx, playerID)
+	if err := pu.playerRepository.ReleasePlayer(ctx, playerID); err != nil {
+		return nil, err
+	}
 
-	return nil, nil
+	return &ReleasePlayerRes{
+		Success: true,
+	}, nil
 }
 
 func (pu *playerUsecase) UpdateImage(ctx context.Context, input *UpdatePlayerImageReq) (*UpdatePlayerImageRes, error) {
@@ -281,9 +300,14 @@ func (pu *playerUsecase) UpdateImage(ctx context.Context, input *UpdatePlayerIma
 		return nil, err
 	}
 
-	Reader := bytes.NewReader(input.ImageData)
+	webpBytes, err := imageutil.ConvertImageIntoWebpbFormate(input.ImageData)
+	if err != nil {
+		return nil, err
+	}
 
-	key, err := pu.ObjectStorage.Upload(ctx, pu.ObjectStorageConfig.Bucket, player.ImageKey, Reader, int64(input.Size), input.ContentType)
+	Reader := bytes.NewReader(webpBytes)
+
+	key, err := pu.ObjectStorage.Upload(ctx, pu.ObjectStorageConfig.Bucket, player.ImageKey, Reader, int64(len(webpBytes)), input.ContentType)
 
 	if err != nil {
 		return nil, err
@@ -304,4 +328,46 @@ func (pu *playerUsecase) UpdateImage(ctx context.Context, input *UpdatePlayerIma
 		PresignedUrl: presignedUrl,
 	}, nil
 
+}
+
+func (pu *playerUsecase) GetPlayerPresignedUrl(ctx context.Context, input *GetPlayerPresignedUrlReq) (*GetPlayerPresignedUrlRes, error) {
+	teamID, err := uuid.Parse(input.TeamID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+
+	userID, err := uuid.Parse(input.UserID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid user id")
+	}
+
+	playerID, err := uuid.Parse(input.PlayerID)
+	if err != nil {
+		return nil, apperror.NewInvalidArgumentError("invalid player id")
+	}
+
+	exist, err := pu.teamMemberRepo.IsTeamMemberExist(ctx, teamID, userID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, apperror.NewNotFoundError("user is not a member of the team ")
+	}
+	player, err := pu.playerRepository.GetPlayer(ctx, &playerID)
+	if err != nil {
+		return nil, err
+	}
+
+	presignedUrl, err := pu.ObjectStorage.GetPresignedURL(ctx, pu.ObjectStorageConfig.Bucket, player.ImageKey, pu.ObjectStorageConfig.PresignedURLExpiry)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetPlayerPresignedUrlRes{
+		TeamID:       input.TeamID,
+		PlayerId:     input.PlayerID,
+		PresignedUrl: presignedUrl,
+	}, nil
 }

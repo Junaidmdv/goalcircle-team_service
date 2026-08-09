@@ -18,7 +18,6 @@ type AddPlayerReq struct {
 	Weight       float32
 	ImageBytes   []byte
 	ContentType  string
-	ImageSize    int
 }
 
 type AddPlayerRes struct {
@@ -28,6 +27,7 @@ type AddPlayerRes struct {
 	JerseyNumber int32
 	Position     entity.PlayerPosition
 	Status       entity.PlayerStatus
+	PresignedUrl string
 }
 
 type UpdatPlayerStatusReq struct {
@@ -36,14 +36,15 @@ type UpdatPlayerStatusReq struct {
 }
 
 type UpdatePlayerStatusRes struct {
-	Success bool
+	PlayerID string
+	Status   entity.PlayerStatus
 }
 
 type ListTeamPlayersReq struct {
 	TeamID       string
 	Page         int32
 	Limit        int32
-	PlayerStatus entity.PlayerStats
+	PlayerStatus entity.PlayerStatus
 	Position     entity.PlayerPosition
 	Search       string
 }
@@ -83,11 +84,12 @@ type GetPlayerRes struct {
 
 type ReleasePlayerReq struct {
 	UserID   string
-	TeamID   string 
-	PlayerID string 
+	TeamID   string
+	PlayerID string
 }
 
 type ReleasePlayerRes struct {
+	Success bool
 }
 
 type UpdatePlayerImageReq struct {
@@ -96,11 +98,22 @@ type UpdatePlayerImageReq struct {
 	PlayerID    string
 	ImageData   []byte
 	ContentType string
-	Size        int
 }
 
 type UpdatePlayerImageRes struct {
 	TeamID       string
 	PlayerID     string
+	PresignedUrl string
+}
+
+type GetPlayerPresignedUrlReq struct {
+	UserID   string
+	PlayerID string
+	TeamID   string
+}
+
+type GetPlayerPresignedUrlRes struct {
+	TeamID       string
+	PlayerId     string
 	PresignedUrl string
 }

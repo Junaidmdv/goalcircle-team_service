@@ -64,7 +64,6 @@ func MapProtoPlayerPosition(position entity.PlayerPosition) teamv1.PlayerPositio
 }
 
 var protoToDomainPlayerStatus = map[teamv1.PlayerStatus]entity.PlayerStatus{
-	teamv1.PlayerStatus_STATUS_UNSPECIFIED: entity.PlayerStatusPendingActionvation,
 	teamv1.PlayerStatus_STATUS_ACTIVE:      entity.PlayerStatusActive,
 	teamv1.PlayerStatus_STATUS_INACTIVE:    entity.PlayerStatusInjured,
 	teamv1.PlayerStatus_STATUS_SUSPENDED:   entity.PlayerStatusSuspended,
@@ -72,7 +71,6 @@ var protoToDomainPlayerStatus = map[teamv1.PlayerStatus]entity.PlayerStatus{
 }
 
 var domainToProtoPlayerStatus = map[entity.PlayerStatus]teamv1.PlayerStatus{
-	entity.PlayerStatusPendingActionvation: teamv1.PlayerStatus_STATUS_UNSPECIFIED,
 	entity.PlayerStatusActive:              teamv1.PlayerStatus_STATUS_ACTIVE,
 	entity.PlayerStatusInjured:             teamv1.PlayerStatus_STATUS_INACTIVE,
 	entity.PlayerStatusSuspended:           teamv1.PlayerStatus_STATUS_SUSPENDED,
@@ -83,7 +81,7 @@ func MapPlayerStatus(status teamv1.PlayerStatus) entity.PlayerStatus {
 	if s, ok := protoToDomainPlayerStatus[status]; ok {
 		return s
 	}
-	return entity.PlayerStatusPendingActionvation
+	return entity.PlayerStatusInvalid
 }
 
 func MapProtoPlayerStatus(status entity.PlayerStatus) teamv1.PlayerStatus {

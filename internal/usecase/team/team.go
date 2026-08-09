@@ -3,8 +3,7 @@ package team
 import (
 	"bytes"
 	"context"
-	"image"
-	"net/http"
+	"fmt"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
@@ -15,6 +14,7 @@ import (
 	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/storage"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/imageutil"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"github.com/google/uuid"
 )
@@ -27,6 +27,7 @@ type TeamUsecase interface {
 	ChangeCaptain(context.Context, *ChangeCaptainReq) (*ChangeCaptainRes, error)
 	ChangeViceCaptain(context.Context, *ChangeViceCaptainReq) (*ChangeViceCaptainRes, error)
 	UploadLogo(context.Context, *UploadLogoReq) (*UploadLogoRes, error)
+	GetPresignedURL(context.Context, *GetPresignedUrlReq) (*GetPresignedUrlRes, error)
 }
 
 type teamUsecase struct {
@@ -131,6 +132,7 @@ func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDet
 		City:        team.City,
 		Description: team.Description,
 		ShortName:   team.ShortName,
+		LogoKey:     team.LogoKey,
 	}, nil
 }
 
@@ -282,33 +284,28 @@ func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*Upl
 	if !exist {
 		return nil, apperror.NewNotFoundError("team is not found in this id")
 	}
-
-	contentType := http.DetectContentType(req.LogoData)
-
-	if err = ImageAllowedFormate(contentType); err != nil {
+	webpBytes, err := imageutil.ConvertImageIntoWebpbFormate(req.LogoData)
+	if err != nil {
 		return nil, err
 	}
 
-	logoReader := bytes.NewReader(req.LogoData)
+	objectName := fmt.Sprintf("/team/%s/logo.webp", req.TeamID)
 
-	config, _, err := image.DecodeConfig(logoReader)
+	key, err := tu.objectStore.Upload(ctx, tu.objectStoreConfig.Bucket, objectName, bytes.NewReader(webpBytes), int64(len(webpBytes)), "image/webp")
+
 	if err != nil {
-		tu.logger.Error("failed decode image using image.DecodeConfig", "error", err)
-		return nil, apperror.NewInternalError("failed decode image", err)
-	}
-
-	if err := ValidateImageDiamension(config.Height, config.Width); err != nil {
 		return nil, err
 	}
 
-	objectName := CreateObjectName(req.TeamID)
+	// logoReader := bytes.NewReader(req.LogoData)
 
-	key, err := tu.objectStore.Upload(ctx, tu.objectStoreConfig.Bucket, objectName, logoReader, req.Size, contentType)
+	// objectName := CreateObjectName(req.TeamID)
 
-	if err != nil {
+	// key, err := tu.objectStore.Upload(ctx, tu.objectStoreConfig.Bucket, objectName, logoReader, req.Size, "image/webp")
 
-		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
-	}
+	// if err != nil {
+	// 	return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	// }
 
 	if err = tu.teamRepo.UpdateLogoKey(ctx, teamid, key); err != nil {
 		return nil, err
@@ -321,9 +318,11 @@ func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*Upl
 	}
 
 	return &UploadLogoRes{
-		TeamID: req.TeamID, 
+		TeamID:       req.TeamID,
 		PresignedUrl: presignedUrl,
 	}, nil
 }
 
-
+func (tu *teamUsecase) GetPresignedURL(ctx context.Context, input *GetPresignedUrlReq) (*GetPresignedUrlRes, error) {
+	return nil, nil
+}

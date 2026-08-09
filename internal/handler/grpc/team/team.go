@@ -11,6 +11,7 @@ import (
 	teamsaga "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga/team"
 	team_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/imageutil"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/validater"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -89,7 +90,7 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 	}, nil
 }
 
-func (th *TeamHandler) UpdateTeamDetails(ctx context.Context, req *pb.UpdateTeamReq) (*pb.UpdateTeamRes, error) {
+func (th *TeamHandler) UpdateTeam(ctx context.Context, req *pb.UpdateTeamReq) (*pb.UpdateTeamRes, error) {
 
 	context, cancel := context.WithTimeout(ctx, th.timeOut)
 	defer cancel()
@@ -221,7 +222,7 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 	ctx := stream.Context()
 
 	var (
-		meta *pb.TeamLogoMetaData
+		meta      *pb.TeamLogoMetaData
 		buffer    bytes.Buffer
 		imagesize int64
 	)
@@ -261,10 +262,15 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 
 	}
 
+	contentype, err := imageutil.ValidateImage(buffer.Bytes(), imageutil.TeamLogo)
+	if err != nil {
+		return apperror.GRPCStatus(err)
+	}
+
 	res, err := th.teamUsecase.UploadLogo(ctx, &team_uc.UploadLogoReq{
 		TeamID:      meta.TeamId,
 		LogoData:    buffer.Bytes(),
-		ContentType: meta.ContentType,
+		ContentType: contentype,
 		Size:        imagesize,
 	})
 
@@ -277,4 +283,9 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 		ResignedUrl: res.PresignedUrl,
 	})
 
+}
+
+
+func(th *TeamHandler)GetPresignedURL(ctx context.Context,req *pb.GetPlayerPresignedUrlReq)(*pb.GetPlayerPresignedUrlRes,error){
+	return nil,nil
 }

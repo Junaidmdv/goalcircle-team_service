@@ -36,6 +36,7 @@ type UpdateTeamDetailsRes struct {
 	City        string
 	Description string
 	ShortName   string
+	LogoKey     string
 }
 
 type UpdateTeamContactDetailsReq struct {
@@ -115,4 +116,12 @@ type UploadLogoReq struct {
 type UploadLogoRes struct {
 	TeamID       string
 	PresignedUrl string
+}
+
+type GetPresignedUrlReq struct{
+
+}
+
+type GetPresignedUrlRes struct{
+
 }

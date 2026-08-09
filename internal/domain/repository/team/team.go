@@ -23,6 +23,7 @@ type TeamRepository interface {
 	ListTeams(context.Context, *ListTeamsReq) ([]entity.Team, int32, error)
 	IsTeamExist(context.Context, uuid.UUID) (bool, error)
 	UpdateLogoKey(context.Context, uuid.UUID, string) error
+	IsJerseyNumOccupied(context.Context, uuid.UUID, int32) (bool, error)
 }
 
 type teamRepository struct {
@@ -84,6 +85,14 @@ func (tr *teamRepository) UpdateTeamDetails(ctx context.Context, teamID uuid.UUI
 
 	if req.Description != nil {
 		updates["description"] = *req.Description
+	}
+
+	if req.Email != nil {
+		updates["email"] = *req.Email
+	}
+
+	if req.PhoneNum != nil {
+		updates["phone_num"] = *req.PhoneNum
 	}
 
 	if len(updates) == 0 {
@@ -225,4 +234,39 @@ func (tr *teamRepository) UpdateLogoKey(ctx context.Context, teamID uuid.UUID, k
 	}
 
 	return nil
+}
+
+func (pr *teamRepository) IsJerseyNumOccupied(
+	ctx context.Context,
+	teamID uuid.UUID,
+	jerseyNumber int32,
+) (bool, error) {
+
+	var player entity.Player
+
+	err := pr.db.WithContext(ctx).
+		Model(&entity.Player{}).
+		Joins("JOIN team_members tm ON tm.id = players.team_member_id").
+		Where(
+			"tm.team_id = ? AND players.jersey_number = ?  ",
+			teamID,
+			jerseyNumber,
+		).Not("players.status = ?", entity.PlayerStatusReleased).
+		First(&player).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+
+		pr.logger.Error(
+			"database error",
+			"error", err,
+			"method", "IsJerseyNumOccupied",
+		)
+
+		return false, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+
+	return true, nil
 }

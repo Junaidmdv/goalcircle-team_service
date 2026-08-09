@@ -54,7 +54,7 @@ func ToUpdateTeam(rq *pb.UpdateTeamReq) *UpdateTeamDetailsReq {
 		City:         *rq.City,
 		Description:  *rq.City,
 		ShortName:    *rq.ShortName,
-		Email:        *rq.ShortName,
+		Email:        *rq.Email,
 		PhoneNum:     *rq.PhoneNumber,
 	}
 }

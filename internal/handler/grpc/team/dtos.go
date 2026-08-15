@@ -12,7 +12,6 @@ type CreateTeamReq struct {
 }
 
 type UpdateTeamDetailsReq struct {
-	TeamID      string `json:"team_id"        validate:"required"`
 	UserID      string `json:"team_member_id" validate:"required"`
 	Name        string `json:"name"           validate:"omitempty,team-name"`
 	City        string `json:"city"           validate:"omitempty,min=3,max=50"`

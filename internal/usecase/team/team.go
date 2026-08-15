@@ -28,6 +28,7 @@ type TeamUsecase interface {
 	ChangeViceCaptain(context.Context, *ChangeViceCaptainReq) (*ChangeViceCaptainRes, error)
 	UploadLogo(context.Context, *UploadLogoReq) (*UploadLogoRes, error)
 	GetPresignedURL(context.Context, *GetPresignedUrlReq) (*GetPresignedUrlRes, error)
+	GetTeam(context.Context, *GetTeamReq) (*GetTeamRes, error)
 }
 
 type teamUsecase struct {
@@ -52,7 +53,10 @@ func NewTeamUsecase(teamrepo team_repo.TeamRepository, logger logger.Logger, cod
 	}
 }
 
-func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*CreateTeamRes, error) {
+func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*CreateTeamRes, error) {  
+
+	tu.teamMemberRepo.IsTeamMemberExist(ctx,dt.userID)
+	
 
 	code, err := tu.code.GenerateCode("TM")
 	if err != nil {
@@ -64,7 +68,7 @@ func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*Crea
 	res, err := tu.teamRepo.CreateTeam(ctx, &entity.Team{
 		ID:          uuid.New(),
 		Name:        formatedTeamName,
-		ShortName:   tu.code.GenerateShortName(dt.Name),
+		ShortName:   tu.code.GenerateShortName(dt.Name, 2, true),
 		City:        dt.City,
 		Description: dt.Description,
 		TeamCode:    code,
@@ -87,23 +91,17 @@ func (tu *teamUsecase) DeleteTeam(ctx context.Context, teamId uuid.UUID) error {
 }
 
 func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDetailsReq) (*UpdateTeamDetailsRes, error) {
-
-	teamId, err := uuid.Parse(req.TeamID)
-	if err != nil {
-		return nil, apperror.NewFailedPreCondition("invalid team id")
-	}
-
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
 		return nil, apperror.NewFailedPreCondition("invalid team member id")
 	}
 
-	role, err := tu.teamMemberRepo.GetTeamMemeberRole(ctx, teamId, userID)
+	teamMember, err := tu.teamMemberRepo.GetActiveTeamMemberByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	permitted := permission.HasPermissionTeam(role, permission.PermissionUpdateTeamDetails)
+	permitted := permission.HasPermissionTeam(teamMember.Role, permission.PermissionUpdateTeamDetails)
 	if !permitted {
 		return nil, apperror.NewPermissionDenied("user not allowed to update team details")
 	}
@@ -113,11 +111,11 @@ func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDet
 	}
 
 	if req.Name != nil && req.ShortName == nil {
-		*req.ShortName = tu.code.GenerateShortName(*req.Name)
+		*req.ShortName = tu.code.GenerateShortName(*req.Name, 2, true)
 	}
 
-	team, err := tu.teamRepo.UpdateTeamDetails(ctx, teamId, &team_repo.UpdateTeamReq{
-		TeamID:      teamId,
+	team, err := tu.teamRepo.UpdateTeamDetails(ctx, teamMember.TeamID, &team_repo.UpdateTeamReq{
+		TeamID:      teamMember.TeamID,
 		Name:        req.Name,
 		ShortName:   req.ShortName,
 		City:        req.City,
@@ -265,31 +263,57 @@ func (tu *teamUsecase) ListTeams(ctx context.Context, input *ListTeamsReq) (*Lis
 }
 
 func (tu *teamUsecase) GetTeam(ctx context.Context, req *GetTeamReq) (*GetTeamRes, error) {
-
-	return &GetTeamRes{}, nil
-}
-
-func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*UploadLogoRes, error) {
-
-	teamid, err := uuid.Parse(req.TeamID)
+	teamID, err := uuid.Parse(req.TeamID)
 	if err != nil {
-		return nil, apperror.NewInvalidArgumentError("invalid team id")
+		return nil, apperror.NewBadRequestError("invalid team id")
 	}
 
-	exist, err := tu.teamRepo.IsTeamExist(ctx, teamid)
+	team, err := tu.teamRepo.GetTeamDetails(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	if !exist {
-		return nil, apperror.NewNotFoundError("team is not found in this id")
+	return &GetTeamRes{
+		ID:            team.ID.String(),
+		Name:          team.Name,
+		ShortName:     team.ShortName,
+		City:          team.City,
+		LogoKey:       team.LogoKey,
+		TeamCode:      team.TeamCode,
+		Description:   team.Description,
+		Email:         team.Email,
+		PhoneNum:      team.PhoneNum,
+		TeamStatus:    string(team.TeamStatus),
+		PlayerCount:   team.PlayerCount,
+		CaptainID:     team.CaptainID.String(),
+		ViceCaptainID: team.ViceCaptainID.String(),
+		CreatedAt:     team.CreatedAt,
+	}, nil
+}
+
+func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*UploadLogoRes, error) {
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		return nil, apperror.NewInvalidArgumentError("invalid team id")
 	}
+
+	teamMember, err := tu.teamMemberRepo.GetActiveTeamMemberByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	team, err := tu.teamRepo.GetTeamDetails(ctx, teamMember.TeamID)
+	if err != nil {
+		return nil, err
+	}
+
 	webpBytes, err := imageutil.ConvertImageIntoWebpbFormate(req.LogoData)
 	if err != nil {
 		return nil, err
 	}
 
-	objectName := fmt.Sprintf("/team/%s/logo.webp", req.TeamID)
+	objectName := fmt.Sprintf("/team/%s/logo.webp", team.ID)
 
 	key, err := tu.objectStore.Upload(ctx, tu.objectStoreConfig.Bucket, objectName, bytes.NewReader(webpBytes), int64(len(webpBytes)), "image/webp")
 
@@ -297,17 +321,7 @@ func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*Upl
 		return nil, err
 	}
 
-	// logoReader := bytes.NewReader(req.LogoData)
-
-	// objectName := CreateObjectName(req.TeamID)
-
-	// key, err := tu.objectStore.Upload(ctx, tu.objectStoreConfig.Bucket, objectName, logoReader, req.Size, "image/webp")
-
-	// if err != nil {
-	// 	return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
-	// }
-
-	if err = tu.teamRepo.UpdateLogoKey(ctx, teamid, key); err != nil {
+	if err = tu.teamRepo.UpdateLogoKey(ctx, team.ID, key); err != nil {
 		return nil, err
 	}
 
@@ -318,11 +332,30 @@ func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*Upl
 	}
 
 	return &UploadLogoRes{
-		TeamID:       req.TeamID,
+		TeamID:       team.ID.String(),
 		PresignedUrl: presignedUrl,
 	}, nil
 }
 
 func (tu *teamUsecase) GetPresignedURL(ctx context.Context, input *GetPresignedUrlReq) (*GetPresignedUrlRes, error) {
-	return nil, nil
+
+	teamID, err := uuid.Parse(input.TeamID)
+	if err != nil {
+		return nil, apperror.NewInvalidArgumentError("invalid team id.")
+	}
+
+	team, err := tu.teamRepo.GetTeamDetails(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	presignedUrl, err := tu.objectStore.GetPresignedURL(ctx, tu.objectStoreConfig.Bucket, team.LogoKey, tu.objectStoreConfig.PresignedURLExpiry)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetPresignedUrlRes{
+		TeamID:       team.ID.String(),
+		PresignedUrl: presignedUrl,
+	}, nil
 }

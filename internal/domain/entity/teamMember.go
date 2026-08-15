@@ -27,7 +27,7 @@ type TeamMemberStatus string
 
 const (
 	TeamMemberStatusActive   TeamMemberStatus = "ACTIVE"
-	TeamMemberStatusInactive TeamMemberStatus = "INACTIVE" 
+	TeamMemberStatusInactive TeamMemberStatus = "INACTIVE"
 )
 
 type TeamMember struct {
@@ -37,9 +37,10 @@ type TeamMember struct {
 	FullName   string
 	Role       TeamMemberRole
 	Status     TeamMemberStatus
-	CreatedAt  time.Time
+	JoinedAt   time.Time
+	ReleasedAt time.Time
+	DismedAt   time.Time
 	Player     Player     `gorm:"foreignKey:TeamMemberID"`
 	Staff      Staff      `gorm:"foreignKey:TeamMemberID"`
-	TeamInvite TeamInvite `gorm:"foreignKey:TeamMemberID"` 
-	DeletedAt  time.Time  
+	TeamInvite TeamInvite `gorm:"foreignKey:TeamMemberID"`
 }

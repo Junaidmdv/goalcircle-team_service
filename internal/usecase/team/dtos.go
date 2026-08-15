@@ -1,6 +1,8 @@
 package team
 
 import (
+	"time"
+
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/google/uuid"
 )
@@ -17,10 +19,11 @@ type CreateTeamReq struct {
 	Name        string
 	City        string
 	Description string
+	PhoneNum    string
+	Email       string
 }
 
 type UpdateTeamDetailsReq struct {
-	TeamID      string
 	UserID      string
 	Name        *string
 	City        *string
@@ -101,13 +104,28 @@ type ListTeamsRes struct {
 }
 
 type GetTeamReq struct {
+	TeamID string
 }
 
 type GetTeamRes struct {
+	ID            string
+	Name          string
+	ShortName     string
+	City          string
+	LogoKey       string
+	TeamCode      string
+	Description   string
+	Email         string
+	PhoneNum      string
+	TeamStatus    string
+	PlayerCount   int32
+	CaptainID     string
+	ViceCaptainID string
+	CreatedAt     time.Time
 }
 
 type UploadLogoReq struct {
-	TeamID      string
+	UserID      string
 	LogoData    []byte
 	ContentType string
 	Size        int64
@@ -118,10 +136,11 @@ type UploadLogoRes struct {
 	PresignedUrl string
 }
 
-type GetPresignedUrlReq struct{
-
+type GetPresignedUrlReq struct {
+	TeamID string
 }
 
-type GetPresignedUrlRes struct{
-
+type GetPresignedUrlRes struct {
+	TeamID       string
+	PresignedUrl string
 }

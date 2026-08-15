@@ -59,6 +59,8 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 		City:         req.City,
 		Description:  req.Description,
 		FullName:     req.Owner.FullName,
+		PhoneNum:     req.ContactNum,
+		Email:        req.Email,
 	})
 
 	if err != nil {
@@ -105,7 +107,6 @@ func (th *TeamHandler) UpdateTeam(ctx context.Context, req *pb.UpdateTeamReq) (*
 	}
 
 	res, err := th.teamUsecase.UpdateTeamDetails(context, &team_uc.UpdateTeamDetailsReq{
-		TeamID:      req.TeamId,
 		UserID:      req.UserId,
 		Name:        req.Name,
 		City:        req.City,
@@ -268,7 +269,7 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 	}
 
 	res, err := th.teamUsecase.UploadLogo(ctx, &team_uc.UploadLogoReq{
-		TeamID:      meta.TeamId,
+		UserID:      meta.UserId,
 		LogoData:    buffer.Bytes(),
 		ContentType: contentype,
 		Size:        imagesize,
@@ -285,7 +286,42 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 
 }
 
+func (th *TeamHandler) GetPresignedURL(ctx context.Context, req *pb.GetPresignedUrlReq) (*pb.GetPresignedUrlRes, error) {
 
-func(th *TeamHandler)GetPresignedURL(ctx context.Context,req *pb.GetPlayerPresignedUrlReq)(*pb.GetPlayerPresignedUrlRes,error){
-	return nil,nil
+	res, err := th.teamUsecase.GetPresignedURL(ctx, &team_uc.GetPresignedUrlReq{
+		TeamID: req.TeamId,
+	})
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
+
+	return &pb.GetPresignedUrlRes{
+		TeamId:       res.TeamID,
+		PresignedUrl: res.PresignedUrl,
+	}, nil
+}
+
+func (th *TeamHandler) GetTeam(ctx context.Context, req *pb.GetTeamReq) (*pb.GetTeamRes, error) {
+
+	res, err := th.teamUsecase.GetTeam(ctx, &team_uc.GetTeamReq{
+		TeamID: req.TeamId,
+	})
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
+
+	return &pb.GetTeamRes{
+		TeamId:        res.ID,
+		Name:          res.Name,
+		ShortName:     res.ShortName,
+		City:          res.City,
+		LogoKey:       res.LogoKey,
+		TeamCode:      res.TeamCode,
+		Email:         res.Email,
+		PhoneNum:      res.PhoneNum,
+		TeamStatus:    res.TeamStatus,
+		PlayerCount:   res.PlayerCount,
+		CaptionId:     res.CaptainID,
+		ViceCaptionId: res.ViceCaptainID,
+	}, nil
 }

@@ -39,6 +39,8 @@ type TeamSagaState struct {
 	City          string
 	Description   string
 	FullName      string
+	PhoneNum      string
+	Email         string
 	AddUserRes    *AddUserRoleRes
 	TeamRes       *CreateTeamRes
 	TeamMemberRes *TeamMemberRes
@@ -58,6 +60,8 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 					Name:        req.TeamName,
 					City:        req.City,
 					Description: req.Description,
+					PhoneNum:    req.PhoneNum,
+					Email:       req.Email,
 				})
 
 				if err != nil {

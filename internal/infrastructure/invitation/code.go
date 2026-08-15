@@ -3,11 +3,12 @@ package invitation
 import (
 	"crypto/rand"
 	"math/big"
+	"regexp"
 	"strings"
 )
 
 type CodeGenerater interface {
-	GenerateShortName(string) string
+	GenerateShortName(string, int, bool) string
 	GenerateCode(string) (string, error)
 }
 
@@ -25,36 +26,75 @@ func NewCodeGenerater(length int32) CodeGenerater {
 	}
 }
 
-func (cg *codeGenerater) GenerateShortName(teamName string) string {
-	words := strings.Fields(strings.TrimSpace(teamName))
+var numberRegex = regexp.MustCompile(`^\d+$`)
+var vowels = map[byte]bool{'a': true, 'e': true, 'i': true, 'o': true, 'u': true}
 
-	switch len(words) {
-	case 0:
-		return ""
-	case 1:
-		name := strings.ToUpper(words[0])
-		if len(name) >= 3 {
-			return name[:3]
+func firstLetter(w string) string {
+	for i := 0; i < len(w); i++ {
+		c := w[i]
+		if c >= 'a' && c <= 'z' {
+			return string(c)
 		}
-		return name
-	default:
-		short := ""
-
-		for _, word := range words {
-			short += strings.ToUpper(string(word[0]))
-		}
-
-		if len(short) >= 3 {
-			return short[:3]
-		}
-
-		name := strings.ToUpper(strings.ReplaceAll(teamName, " ", ""))
-		for len(short) < 3 && len(name) > len(short) {
-			short += string(name[len(short)])
-		}
-
-		return short
 	}
+	if len(w) > 0 {
+		return string(w[0])
+	}
+	return ""
+}
+
+func (cg *codeGenerater) GenerateShortName(teamName string, shortWordMax int, uppercase bool) string {
+	if shortWordMax <= 0 {
+		shortWordMax = 2
+	}
+
+	rawWords := strings.Fields(strings.TrimSpace(teamName))
+	words := make([]string, 0, len(rawWords))
+	for _, w := range rawWords {
+		if !numberRegex.MatchString(w) {
+			words = append(words, w)
+		}
+	}
+
+	if len(words) == 0 {
+		return ""
+	}
+
+	var result string
+
+	if len(words) == 1 {
+		w := strings.ToLower(words[0])
+		result = string(w[0])
+		found := false
+		for i := 1; i < len(w); i++ {
+			if !vowels[w[i]] {
+				result += string(w[i])
+				found = true
+				break
+			}
+		}
+		// fallback if no consonant found (e.g. "aeiou" edge case)
+		if !found && len(w) > 1 {
+			result += string(w[1])
+		}
+	} else {
+		// Multiple words -> keep short words whole, else take first letter
+		var sb strings.Builder
+		for _, w := range words {
+			lw := strings.ToLower(w)
+			if len(lw) <= shortWordMax {
+				sb.WriteString(lw)
+			} else {
+				sb.WriteString(firstLetter(lw))
+			}
+		}
+		result = sb.String()
+	}
+
+	if uppercase {
+		return strings.ToUpper(result)
+	}
+	return result
+
 }
 
 func (cg *codeGenerater) GenerateCode(role string) (string, error) {
@@ -70,6 +110,6 @@ func (cg *codeGenerater) GenerateCode(role string) (string, error) {
 		b[i] = cg.chars[n.Int64()]
 	}
 
-	code := cg.GenerateShortName(role) + string(b)
+	code := cg.GenerateShortName(role, 2, true) + string(b)
 	return code, nil
 }

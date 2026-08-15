@@ -24,6 +24,7 @@ type TeamRepository interface {
 	IsTeamExist(context.Context, uuid.UUID) (bool, error)
 	UpdateLogoKey(context.Context, uuid.UUID, string) error
 	IsJerseyNumOccupied(context.Context, uuid.UUID, int32) (bool, error)
+	GetTeamDetails(context.Context, uuid.UUID) (*entity.Team, error)
 }
 
 type teamRepository struct {
@@ -269,4 +270,17 @@ func (pr *teamRepository) IsJerseyNumOccupied(
 	}
 
 	return true, nil
+}
+
+func (tr *teamRepository) GetTeamDetails(ctx context.Context, teamID uuid.UUID) (*entity.Team, error) {
+	var team entity.Team
+
+	if err := tr.db.WithContext(ctx).First(&team, teamID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.NewNotFoundError("team not found in this id")
+		}
+		tr.logger.Error("database error", "error", err, "method", "teamRepo.GetTeamDetails")
+		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+	return &team, nil
 }

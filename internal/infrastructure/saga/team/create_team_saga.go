@@ -57,6 +57,7 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 				req := sagaState.(*TeamSagaState)
 
 				res, err := ts.teamUsecase.CreateTeam(ctx, &team.CreateTeamReq{
+					UserID:      req.UserID,
 					Name:        req.TeamName,
 					City:        req.City,
 					Description: req.Description,

@@ -41,7 +41,13 @@ type teamUsecase struct {
 	objectStoreConfig *config.ObjectStorageConfig
 }
 
-func NewTeamUsecase(teamrepo team_repo.TeamRepository, logger logger.Logger, code code.CodeGenerater, tmrepo teammember.TeamMemberRepository, playerepo playerrepo.PlayerRepository, ob storage.ObjectStorage, obconfig *config.ObjectStorageConfig) TeamUsecase {
+func NewTeamUsecase(teamrepo team_repo.TeamRepository, 
+	logger logger.Logger, 
+	code code.CodeGenerater,
+	 tmrepo teammember.TeamMemberRepository, 
+	 playerepo playerrepo.PlayerRepository, 
+	 ob storage.ObjectStorage, 
+	 obconfig *config.ObjectStorageConfig) TeamUsecase {
 	return &teamUsecase{
 		teamRepo:          teamrepo,
 		logger:            logger,
@@ -53,10 +59,13 @@ func NewTeamUsecase(teamrepo team_repo.TeamRepository, logger logger.Logger, cod
 	}
 }
 
-func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*CreateTeamRes, error) {  
+func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*CreateTeamRes, error) {
 
-	tu.teamMemberRepo.IsTeamMemberExist(ctx,dt.userID)
-	
+	userId, err := uuid.Parse(dt.UserID)
+	if err != nil {
+		return nil, apperror.NewInvalidArgumentError("invalid user id")
+	}
+	tu.teamMemberRepo.GetActiveTeamMemberByUserID(ctx, userId)
 
 	code, err := tu.code.GenerateCode("TM")
 	if err != nil {

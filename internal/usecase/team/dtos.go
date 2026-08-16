@@ -16,6 +16,7 @@ type CreateTeamRes struct {
 }
 
 type CreateTeamReq struct {
+	UserID      string
 	Name        string
 	City        string
 	Description string

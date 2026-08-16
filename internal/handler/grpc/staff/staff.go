@@ -2,7 +2,6 @@ package staff
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	pb "github.com/Junaidmdv/goalcircle-protos/team/v1"
@@ -33,9 +32,6 @@ func (sh *StaffHandler) AddStaff(ctx context.Context, req *pb.AddStaffReq) (*pb.
 
 	role := MapTeamMemberRole(req.Role)
 	designation := MapStaffDesignation(req.Designation)
-    
-	fmt.Println("HEEEEEEEEEEEEEEEEEEEEEE")
-	fmt.Println(req)
 
 	res, err := sh.StaffUsecase.AddStaff(context, &staffuc.AddStaffReq{
 		TeamID:       req.TeamId,

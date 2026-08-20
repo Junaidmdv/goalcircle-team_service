@@ -36,6 +36,14 @@ func playerStatusValidater(fl validator.FieldLevel) bool {
 	return entity.PlayerStatus(fl.Field().String()) != entity.PlayerStatusInvalid
 }
 
+func staffRoleValidater(fl validator.FieldLevel) bool {
+	return entity.StaffRole(fl.Field().String()) != entity.StaffRoleUnspecified
+}
+
+func staffDesignationValidater(fl validator.FieldLevel) bool {
+	return entity.StaffDesignation(fl.Field().String()) != entity.StaffDesignationUnspecified
+}
+
 func teamNameValidation(fl validator.FieldLevel) bool {
 
 	teamName := fl.Field().String()

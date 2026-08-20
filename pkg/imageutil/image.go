@@ -16,6 +16,7 @@ type ImageType string
 const (
 	TeamLogo    ImageType = "TEAM_LOGO"
 	PlayerImage ImageType = "PLAYER_IMAGE"
+	StaffImage  ImageType = "STAFF_IMAGE"
 )
 
 type ImageConfig struct {
@@ -49,38 +50,48 @@ var ImageConfigs = map[ImageType]ImageConfig{
 			"image/jpeg": {},
 			"image/webp": {},
 		},
+	}, StaffImage: {
+		MinWidth:  256,
+		MinHeight: 256,
+		MaxWidth:  1024,
+		MaxHeight: 1024,
+		AllowedTypes: map[string]struct{}{
+			"image/png":  {},
+			"image/jpeg": {},
+			"image/webp": {},
+		},
 	},
 }
 
-func ValidateImage(imageData []byte, imagetype ImageType) (string, error) {
+func ValidateImage(imageData []byte, imagetype ImageType) error {
 	contentType := http.DetectContentType(imageData)
 
 	m, ok := ImageConfigs[imagetype]
 	if !ok {
-		return "", apperror.NewInternalError(apperror.InternalErrorMsg, errors.New("unknown image type"))
+		return  apperror.NewInternalError(apperror.InternalErrorMsg, errors.New("unknown image type"))
 
 	}
 
 	_, exist := m.AllowedTypes[contentType]
 
 	if !exist {
-		return "", apperror.NewInvalidArgumentError("unsupported image content type")
+		return  apperror.NewInvalidArgumentError("unsupported image content type")
 	}
 
 	config, _, err := image.DecodeConfig(bytes.NewReader(imageData))
 	if err != nil {
-		return "", apperror.NewInternalError("failed decode image", err)
+		return  apperror.NewInternalError("failed decode image", err)
 	}
 
 	if config.Height > m.MaxHeight || config.Width > m.MaxWidth {
-		return "", apperror.NewInvalidArgumentError("logo dimensions must be at least 512x512")
+		return  apperror.NewInvalidArgumentError("logo dimensions must be at least 512x512")
 	}
 
 	if config.Height < m.MinHeight || config.Width < m.MinWidth {
-		return "", apperror.NewInvalidArgumentError("logo dimensions must be at least 256x256")
+		return  apperror.NewInvalidArgumentError("logo dimensions must be at least 256x256")
 	}
 
-	return contentType, nil
+	return  nil
 }
 
 func ConvertImageIntoWebpbFormate(imageData []byte) ([]byte, error) {

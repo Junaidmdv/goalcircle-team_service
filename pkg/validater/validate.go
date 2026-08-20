@@ -30,6 +30,8 @@ func NewValidater() (*Validater, error) {
 	validater.RegisterValidation("player-position", playerPositionValidator)
 	validater.RegisterValidation("team-name", teamNameValidation)
 	validater.RegisterValidation("player-status", playerStatusValidater)
+	validater.RegisterValidation("staff-role", staffRoleValidater)
+	validater.RegisterValidation("staff-desig", staffDesignationValidater)
 
 	validater.RegisterTagNameFunc(func(field reflect.StructField) string {
 		name := strings.SplitN(field.Tag.Get("json"), ",", 2)[0]
@@ -64,7 +66,7 @@ func NewValidater() (*Validater, error) {
 		return ut.Add("player-position", "invalid player position.", true)
 	},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			t, _ := ut.T("player-position",fe.Field())
+			t, _ := ut.T("player-position", fe.Field())
 			return t
 		},
 	)
@@ -73,6 +75,24 @@ func NewValidater() (*Validater, error) {
 	},
 		func(ut ut.Translator, fe validator.FieldError) string {
 			t, _ := ut.T("player-status", fe.Field())
+			return t
+		},
+	)
+
+	validater.RegisterTranslation("staff-role", engtrans, func(ut ut.Translator) error {
+		return ut.Add("staff-role", "Invalid staff role. Enter valid staff role.", true)
+	},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T("staff-role", fe.Field())
+			return t
+		},
+	)
+
+	validater.RegisterTranslation("staff-desig", engtrans, func(ut ut.Translator) error {
+		return ut.Add("staff-desig", "Invalid staff designation. Enter valid staff designation.", true)
+	},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T("staff-desig", fe.Field())
 			return t
 		},
 	)

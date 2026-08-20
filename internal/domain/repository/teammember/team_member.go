@@ -16,11 +16,13 @@ type TeamMemberRepository interface {
 	RemoveTeamMember(context.Context, *uuid.UUID) error
 	UpdateUserID(context.Context, *uuid.UUID, string) error
 	GetTeamMemeberRole(context.Context, uuid.UUID, uuid.UUID) (entity.TeamMemberRole, error)
-	GetStaffDesignation(context.Context, string) (entity.StaffDesignation, error)
+	GetStaffDesignation(context.Context, uuid.UUID) (entity.StaffDesignation, error)
 	IsTeamMemberExist(context.Context, uuid.UUID, uuid.UUID) (bool, error)
 	DeleteTeamMember(context.Context, uuid.UUID, uuid.UUID) error
 	GetActiveTeamMemberByUserID(context.Context, uuid.UUID) (*entity.TeamMember, error)
 	GetTeamMemberByID(context.Context, uuid.UUID) (*entity.TeamMember, error)
+	HasUnreleasedMembership(ctx context.Context, userID uuid.UUID) (bool, error)
+	UpdateStatus(ctx context.Context, teamMemberID uuid.UUID, status entity.TeamMemberStatus) error
 }
 
 type teamMemberRepository struct {
@@ -39,7 +41,7 @@ func (tm *teamMemberRepository) IsTeamMemberExist(ctx context.Context, teamID uu
 	var count int64
 	err := tm.db.WithContext(ctx).
 		Model(&entity.TeamMember{}).
-		Where("team_id=? AND user_id=? ", teamID, userID).
+		Where("team_id=? AND user_id=? AND status=? ", teamID, userID, entity.TeamStatusInactive).
 		Count(&count).Error
 	if err != nil {
 		tm.logger.Error("database error", "error", err, "method", "teamMemberRepo.IsTeamMemberExist")
@@ -48,6 +50,8 @@ func (tm *teamMemberRepository) IsTeamMemberExist(ctx context.Context, teamID uu
 
 	return count > 0, nil
 }
+
+func (tm *teamMemberRepository) IsTeamMemberExisted()
 
 func (tm *teamMemberRepository) AddTeamMember(ctx context.Context, input *entity.TeamMember) (*entity.TeamMember, error) {
 	if err := tm.db.WithContext(ctx).Create(input).Error; err != nil {
@@ -98,7 +102,7 @@ func (tm *teamMemberRepository) GetTeamMemeberRole(
 	return member.Role, nil
 }
 
-func (tm *teamMemberRepository) GetStaffDesignation(ctx context.Context, userID string) (entity.StaffDesignation, error) {
+func (tm *teamMemberRepository) GetStaffDesignation(ctx context.Context, userID uuid.UUID) (entity.StaffDesignation, error) {
 
 	var result struct {
 		Designation entity.StaffDesignation
@@ -108,14 +112,13 @@ func (tm *teamMemberRepository) GetStaffDesignation(ctx context.Context, userID 
 		Table("team_members").
 		Select("staff.designation").
 		Joins("JOIN staff ON staff.team_member_id = team_members.id").
-		Where("team_members.user_id = ? AND team_members.status=?", userID, entity.TeamMemberStatusActive).
+		Where("team_members.user_id = ? AND team_members.role=? AND team_members.status=?", userID, entity.TeamMemberRoleStaff, entity.TeamMemberStatusActive).
 		Take(&result).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", apperror.NewNotFoundError("staff not found")
 		}
-
 		tm.logger.Error("database error", "error", err)
 		return "", apperror.NewInternalError(apperror.InternalErrorMsg, err)
 	}
@@ -179,3 +182,34 @@ func (tr *teamMemberRepository) GetTeamMemberByID(
 
 	return &teamMember, nil
 }
+
+func (tmr *teamMemberRepository) HasUnreleasedMembership(ctx context.Context, userID uuid.UUID) (bool, error) {
+
+	var count int64
+
+	err := tmr.db.WithContext(ctx).
+		Model(&entity.TeamMember{}).
+		Where("user_id = ? AND released_at IS NULL AND status=?", userID, entity.TeamMemberStatusRelease).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (tr *teamMemberRepository) UpdateStatus(ctx context.Context, teamMemberID uuid.UUID, status entity.TeamMemberStatus) error {
+
+	result := tr.db.WithContext(ctx).Model(&entity.TeamMember{}).Where("id=?", teamMemberID).Update("status", status)
+
+	if result.Error != nil {
+		return apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return apperror.NewNotFoundError("team member is not found")
+	}
+	return nil
+}
+

@@ -9,26 +9,30 @@ import (
 type StaffDesignation string
 
 const (
-	StaffDesignationHeadCoach        StaffDesignation = "HEAD_COACH"
-	StaffDesignationAssistantCoach   StaffDesignation = "ASSISTANT_COACH"
-	StaffDesignationGoalkeeperCoach  StaffDesignation = "GOALKEEPER_COACH"
-	StaffDesignationFitnessCoach     StaffDesignation = "FITNESS_COACH"
-	StaffDesignationPhysio           StaffDesignation = "PHYSIO"
-	StaffDesignationDoctor           StaffDesignation = "DOCTOR"
-	StaffDesignationAnalyst          StaffDesignation = "ANALYST"
-	StaffDesignationTeamCoordinator  StaffDesignation = "TEAM_COORDINATOR"
-	StaffDesignationEquipmentManager StaffDesignation = "EQUIPMENT_MANAGER"
-	StaffDesignationOther            StaffDesignation = "OTHER"
+	StaffDesignationOwner   StaffDesignation = "OWNER"
+	StaffDesignationManager StaffDesignation = "MANAGER"
+
+	StaffDesignationHeadCoach       StaffDesignation = "HEAD_COACH"
+	StaffDesignationAssistantCoach  StaffDesignation = "ASSISTANT_COACH"
+	StaffDesignationGoalkeeperCoach StaffDesignation = "GOALKEEPER_COACH"
+	StaffDesignationFitnessCoach    StaffDesignation = "FITNESS_COACH"
+
+	StaffDesignationPhysio StaffDesignation = "PHYSIO"
+	StaffDesignationDoctor StaffDesignation = "DOCTOR"
+
+	StaffDesignationAnalyst     StaffDesignation = "ANALYST"
+	StaffDesignationOther       StaffDesignation = "OTHER"
+	StaffDesignationUnspecified StaffDesignation = "UNSPECIFIED"
 )
 
-
-type StaffStatus string
+type StaffRole string
 
 const (
-	StaffStatusPending   StaffStatus = "PENDING"
-	StaffStatusActive    StaffStatus = "ACTIVE"
-	StaffStatusSuspended StaffStatus = "SUSPENDED"
-	StaffStatusArchived  StaffStatus = "ARCHIVED"
+	StaffRoleManagement  StaffRole = "MANAGEMENT"
+	StaffRoleCoach       StaffRole = "COACH"
+	StaffRoleMedical     StaffRole = "MEDICAL"
+	StaffRoleOther       StaffRole = "OTHER"
+	StaffRoleUnspecified StaffRole = "UNSPECIFIED"
 )
 
 type Staff struct {
@@ -36,11 +40,11 @@ type Staff struct {
 	TeamMemberID uuid.UUID `gorm:"type:uuid;uniqueIndex"`
 	FullName     string
 	DateOfBirth  time.Time
+	Role         StaffRole
 	Designation  StaffDesignation
-	Status       StaffStatus
+	PhoneNum     string
+	ImageKey     string
 	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	
+	UpdatedAt    time.Time   
+	TeamMember   TeamMember `gorm:"foreignKey:TeamMemberID;references:ID"`
 }
-
-

@@ -71,7 +71,7 @@ func (pr *playerRepository) GetTeamPlayers(ctx context.Context, details *ListUse
 	result := query.Count(&total)
 	if result.Error != nil {
 		pr.logger.Error("database error", "error", result.Error, "method", "repository.Player.GetTeamPlayers")
-		return users, -1, apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+		return nil, -1, apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
 	}
 
 	err := query.

@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
@@ -13,8 +12,6 @@ import (
 )
 
 type TeamMemberUsecase interface {
-	AddTeamOwner(context.Context, *AddTeamOwnerReq) (*AddTeamOwnerRes, error)
-	DeleteTeamOwner(context.Context, *uuid.UUID) error
 	RegisterTeamMember(context.Context, *RegisterTeamMemberReq) (*RegisterTeamMemberRes, error)
 	CompensateRegisterTeamMember(context.Context, *CompensateRegisterTeamMemberReq) error
 }
@@ -31,42 +28,6 @@ func NewTeamMemberUsecase(tmr teammember.TeamMemberRepository, ti teaminvite.Tea
 		teamInviteRepo: ti,
 		logger:         logger,
 	}
-}
-
-func (tm *teamMemberUsecase) AddTeamOwner(ctx context.Context, req *AddTeamOwnerReq) (*AddTeamOwnerRes, error) {
-
-	userID,err:=uuid.Parse(req.UserId) 
-	if err != nil{
-		return nil,apperror.NewInvalidArgumentError("invalid user id")
-	}
-	exist, err := tm.teamMemberRepo.IsTeamMemberExist(ctx,req.TeamID, userID)
-	if err != nil {
-		return nil, err
-	}
-	if exist {
-		return nil, apperror.NewConflictError("team member already added")
-	}
-
-	res, err := tm.teamMemberRepo.AddTeamMember(ctx, &entity.TeamMember{
-		ID:       uuid.New(),
-		UserID:   req.UserId,
-		TeamID:   req.TeamID,
-		FullName: req.FullName,
-		Role:     entity.TeamMemberRoleOwner,
-		Status:   entity.TeamMemberStatusActive,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &AddTeamOwnerRes{
-		TeamMemberID: res.ID,
-		TeamID:       res.TeamID,
-		UserID:       res.UserID,
-		FullName:     res.FullName,
-		Role:         res.Role,
-	}, nil
 }
 
 func (tm *teamMemberUsecase) RegisterTeamMember(ctx context.Context, req *RegisterTeamMemberReq) (*RegisterTeamMemberRes, error) {

@@ -252,7 +252,7 @@ func (pr *teamRepository) IsJerseyNumOccupied(
 			"tm.team_id = ? AND players.jersey_number = ?  ",
 			teamID,
 			jerseyNumber,
-		).Not("players.status = ?", entity.PlayerStatusReleased).
+		).Not("players.status = ?", entity.PlayerStatusArchieved).
 		First(&player).Error
 
 	if err != nil {

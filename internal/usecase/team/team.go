@@ -41,13 +41,13 @@ type teamUsecase struct {
 	objectStoreConfig *config.ObjectStorageConfig
 }
 
-func NewTeamUsecase(teamrepo team_repo.TeamRepository, 
-	logger logger.Logger, 
+func NewTeamUsecase(teamrepo team_repo.TeamRepository,
+	logger logger.Logger,
 	code code.CodeGenerater,
-	 tmrepo teammember.TeamMemberRepository, 
-	 playerepo playerrepo.PlayerRepository, 
-	 ob storage.ObjectStorage, 
-	 obconfig *config.ObjectStorageConfig) TeamUsecase {
+	tmrepo teammember.TeamMemberRepository,
+	playerepo playerrepo.PlayerRepository,
+	ob storage.ObjectStorage,
+	obconfig *config.ObjectStorageConfig) TeamUsecase {
 	return &teamUsecase{
 		teamRepo:          teamrepo,
 		logger:            logger,
@@ -100,19 +100,25 @@ func (tu *teamUsecase) DeleteTeam(ctx context.Context, teamId uuid.UUID) error {
 }
 
 func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDetailsReq) (*UpdateTeamDetailsRes, error) {
+
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		return nil, apperror.NewFailedPreCondition("invalid team member id")
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+
+	teamOwnerRole, err := tu.teamMemberRepo.GetStaffDesignation(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	permite := permission.HasPermission(teamOwnerRole, permission.PermissionAddStaff)
+	if !permite {
+		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
 	}
 
 	teamMember, err := tu.teamMemberRepo.GetActiveTeamMemberByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
-	}
-
-	permitted := permission.HasPermissionTeam(teamMember.Role, permission.PermissionUpdateTeamDetails)
-	if !permitted {
-		return nil, apperror.NewPermissionDenied("user not allowed to update team details")
 	}
 
 	if req.Name != nil {
@@ -145,6 +151,21 @@ func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDet
 
 func (tu *teamUsecase) ChangeCaptain(ctx context.Context, req *ChangeCaptainReq) (*ChangeCaptainRes, error) {
 
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+
+	teamOwnerRole, err := tu.teamMemberRepo.GetStaffDesignation(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	permite := permission.HasPermission(teamOwnerRole, permission.PermissionAddStaff)
+	if !permite {
+		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
+	}
+
 	teamId, err := uuid.Parse(req.TeamID)
 	if err != nil {
 		return nil, apperror.NewFailedPreCondition("invalid team id")
@@ -154,22 +175,13 @@ func (tu *teamUsecase) ChangeCaptain(ctx context.Context, req *ChangeCaptainReq)
 	if err != nil {
 		return nil, apperror.NewFailedPreCondition("invalid player id")
 	}
-	desig, err := tu.teamMemberRepo.GetStaffDesignation(ctx, req.UserID)
+
+	player, err := tu.playerRepo.GetPlayer(ctx, teamId, playerId)
 	if err != nil {
 		return nil, err
 	}
 
-	permitted := permission.HasPermissionSquad(desig, permission.PermissionApointCaptain)
-	if !permitted {
-		return nil, apperror.NewPermissionDenied("user not allowed to set captain")
-	}
-
-	status, err := tu.playerRepo.GetPlayerStatus(ctx, teamId, playerId)
-	if err != nil {
-		return nil, err
-	}
-
-	if status != entity.PlayerStatusActive {
+	if player.TeamMember.Status != entity.TeamMemberStatusActive {
 		return nil, apperror.NewFailedPreCondition("only active players can be selected as captain")
 	}
 
@@ -183,6 +195,21 @@ func (tu *teamUsecase) ChangeCaptain(ctx context.Context, req *ChangeCaptainReq)
 }
 
 func (tu *teamUsecase) ChangeViceCaptain(ctx context.Context, req *ChangeViceCaptainReq) (*ChangeViceCaptainRes, error) {
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+	teamOwnerRole, err := tu.teamMemberRepo.GetStaffDesignation(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	permite := permission.HasPermission(teamOwnerRole, permission.PermissionAddStaff)
+	if !permite {
+		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
+	}
+
 	teamId, err := uuid.Parse(req.TeamID)
 	if err != nil {
 		return nil, apperror.NewFailedPreCondition("invalid team id")
@@ -192,22 +219,13 @@ func (tu *teamUsecase) ChangeViceCaptain(ctx context.Context, req *ChangeViceCap
 	if err != nil {
 		return nil, apperror.NewFailedPreCondition("invalid player id")
 	}
-	desig, err := tu.teamMemberRepo.GetStaffDesignation(ctx, req.UserID)
+
+	player, err := tu.playerRepo.GetPlayer(ctx, teamId, playerId)
 	if err != nil {
 		return nil, err
 	}
 
-	permitted := permission.HasPermissionSquad(desig, permission.PermissionApointCaptain)
-	if !permitted {
-		return nil, apperror.NewPermissionDenied("user not allowed to set captain")
-	}
-
-	status, err := tu.playerRepo.GetPlayerStatus(ctx, teamId, playerId)
-	if err != nil {
-		return nil, err
-	}
-
-	if status != entity.PlayerStatusActive {
+	if player.TeamMember.Status != entity.TeamMemberStatusActive {
 		return nil, apperror.NewFailedPreCondition("only active players can be selected as captain")
 	}
 

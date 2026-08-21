@@ -22,17 +22,19 @@ import (
 type TeamHandler struct {
 	teamUsecase team_uc.TeamUsecase
 	pb.UnimplementedTeamServiceServer
-	teamSaga  teamsaga.TeamSagaMaker
-	timeOut   time.Duration
-	validater *validater.Validater
+	teamSaga       teamsaga.TeamSagaMaker
+	timeOut        time.Duration
+	validater      *validater.Validater
+	teamMemberSaga teamsaga.TeamMemberSaga
 }
 
-func NewTeamHandler(tu team_uc.TeamUsecase, teamSaga teamsaga.TeamSagaMaker, timeout time.Duration, validater *validater.Validater) *TeamHandler {
+func NewTeamHandler(tu team_uc.TeamUsecase, teamSaga teamsaga.TeamSagaMaker, timeout time.Duration, validater *validater.Validater, teamMemberSaga teamsaga.TeamMemberSaga) *TeamHandler {
 	return &TeamHandler{
-		teamUsecase: tu,
-		teamSaga:    teamSaga,
-		timeOut:     timeout,
-		validater:   validater,
+		teamUsecase:    tu,
+		teamSaga:       teamSaga,
+		timeOut:        timeout,
+		validater:      validater,
+		teamMemberSaga: teamMemberSaga,
 	}
 }
 
@@ -52,15 +54,16 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 	}
 
 	res, err := th.teamSaga.CreateTeamSaga(context, &teamsaga.TeamSagaState{
-		UserID:       req.Owner.UserId,
+		UserID:       req.UserId,
 		Role:         entity.TEAM,
 		RefreshToken: req.RefreshToken,
 		TeamName:     req.Name,
 		City:         req.City,
 		Description:  req.Description,
-		FullName:     req.Owner.FullName,
+		FullName:     req.OwnerName,
 		PhoneNum:     req.ContactNum,
 		Email:        req.Email,
+		DOB:          req.Dob.AsTime(),
 	})
 
 	if err != nil {
@@ -84,10 +87,13 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 			RefreshToken:       res.AddUserRes.RefreshToken,
 			RefreshTokenExpiry: timestamppb.New(res.AddUserRes.RefreshTokenExpiry),
 		},
-		TeamMember: &pb.TeamMemberDetails{
-			TeamMemberId: res.TeamMemberRes.TeamMemberID.String(),
-			FullName:     res.TeamMemberRes.FullName,
-			Role:         string(res.TeamMemberRes.Role),
+		TeamOwner: &pb.TeamMemberDetails{
+			StaffId:      res.StaffRes.StaffID.String(),
+			TeamMemberId: res.StaffRes.TeamMemberID.String(),
+			FullName:     res.FullName,
+			Age:          res.StaffRes.Age,
+			Designatin:   string(res.StaffRes.Designation),
+			Role:         string(res.StaffRes.Role),
 		},
 	}, nil
 }
@@ -214,8 +220,34 @@ func (th *TeamHandler) ListTeams(ctx context.Context, req *pb.ListTeamReq) (*pb.
 
 }
 
-func (th *TeamHandler) RegisterTeamMember(ctx context.Context, req *pb.RegisterTeamMemberReq) (*pb.RegisterTeamMemberRes, error) {
-	return &pb.RegisterTeamMemberRes{}, nil
+func (th *TeamHandler) RegisterTeamMember(c context.Context, req *pb.RegisterTeamMemberReq) (*pb.RegisterTeamMemberRes, error) {
+	ctx, cancel := context.WithTimeout(c, th.timeOut)
+	defer cancel()
+
+	res, err := th.teamMemberSaga.RegisterTeamMember(ctx, &teamsaga.TeamMemberSagaState{
+		UserID:       req.UserId,
+		Code:         req.Code,
+		RefreshToken: req.RefreshToken,
+	})
+
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
+
+	return &pb.RegisterTeamMemberRes{
+
+		
+
+		UserDetails: &pb.UserRes{
+			SessionId:          res.AddUserRes.SessionID,
+			UserId:             res.AddUserRes.UserID,
+			Email:              res.AddUserRes.Email,
+			AccessToken:        res.AddUserRes.AccessToken,
+			AccessTokenExpiry:  timestamppb.New(res.AddUserRes.AccessTokenExpiry),
+			RefreshToken:       res.AddUserRes.RefreshToken,
+			RefreshTokenExpiry: timestamppb.New(res.AddUserRes.RefreshTokenExpiry),
+		},
+	}, nil
 }
 
 func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, pb.AddLogoRes]) error {
@@ -263,16 +295,15 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 
 	}
 
-	contentype, err := imageutil.ValidateImage(buffer.Bytes(), imageutil.TeamLogo)
+	err := imageutil.ValidateImage(buffer.Bytes(), imageutil.TeamLogo)
 	if err != nil {
 		return apperror.GRPCStatus(err)
 	}
 
 	res, err := th.teamUsecase.UploadLogo(ctx, &team_uc.UploadLogoReq{
-		UserID:      meta.UserId,
-		LogoData:    buffer.Bytes(),
-		ContentType: contentype,
-		Size:        imagesize,
+		UserID:   meta.UserId,
+		LogoData: buffer.Bytes(),
+		Size:     imagesize,
 	})
 
 	if err != nil {

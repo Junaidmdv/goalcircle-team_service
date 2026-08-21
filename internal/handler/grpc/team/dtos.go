@@ -1,14 +1,17 @@
 package team
 
+import "time"
+
 type CreateTeamReq struct {
-	Name         string `json:"name"          validate:"required,team-name"`
-	City         string `json:"city"          validate:"required"`
-	Description  string `json:"description"   validate:"required"`
-	ContactNum   string `json:"contact_num"   validate:"required"`
-	Email        string `json:"contact_email" validate:"required,email"`
-	RefreshToken string `json:"refresh_token"`
-	UserID       string `json:"user_id"       validate:"required"`
-	FullName     string `json:"full_name"     validate:"required"`
+	Name         string    `json:"name"          validate:"required,team-name"`
+	City         string    `json:"city"          validate:"required"`
+	Description  string    `json:"description"   validate:"required"`
+	ContactNum   string    `json:"contact_num"   validate:"required"`
+	Email        string    `json:"contact_email" validate:"required,email"`
+	RefreshToken string    `json:"refresh_token" validate:"required"`
+	UserID       string    `json:"user_id"       validate:"required"`
+	FullName     string    `json:"full_name"     validate:"required"`
+	DateOfBirth  time.Time `json:"owner_dob"     validte:"required"`
 }
 
 type UpdateTeamDetailsReq struct {

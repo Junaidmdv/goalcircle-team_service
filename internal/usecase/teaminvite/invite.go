@@ -38,21 +38,21 @@ func (ti *teamInviteUsecase) CreateInvitation(ctx context.Context, req *TeamInvi
 		return nil, apperror.NewBadRequestError("invalid user id")
 	}
 
+	teamOwnerRole, err := ti.teamMemberRepo.GetStaffDesignation(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	permite := permission.HasPermission(teamOwnerRole, permission.PermissionAddStaff)
+	if !permite {
+		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
+	}
+
 	teamMemberID, err := uuid.Parse(req.TeamMemberID)
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid user id")
 	}
 
-	authorised, err := ti.teamMemberRepo.GetActiveTeamMemberByUserID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	permite := permission.HasPermissionTeam(authorised.Role, permission.PermissionCreateInvite)
-
-	if !permite {
-		return nil, apperror.NewFailedPreCondition("user is not allowed to create invitation")
-	}
 
 	teamMember, err := ti.teamMemberRepo.GetTeamMemberByID(ctx, teamMemberID)
 	if err != nil {
@@ -69,7 +69,7 @@ func (ti *teamInviteUsecase) CreateInvitation(ctx context.Context, req *TeamInvi
 		if err != nil {
 			return nil, err
 		}
-        
+
 		invite, err = ti.teamInviteRepo.CreateInvitation(ctx, &entity.TeamInvite{
 			ID:           uuid.New(),
 			TeamMemberID: teamMember.ID,

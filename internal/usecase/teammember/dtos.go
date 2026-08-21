@@ -5,12 +5,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type AddTeamOwnerReq struct {
-	TeamID   uuid.UUID
-	UserId   string
-	FullName string
-	Role     entity.UserRole
-}
 
 type AddTeamOwnerRes struct {
 	TeamMemberID uuid.UUID `gorm:"primaryKey"`

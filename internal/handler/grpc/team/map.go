@@ -41,8 +41,8 @@ func ToCreateTeam(req *pb.CreateTeamReq) *CreateTeamReq {
 		ContactNum:   req.ContactNum,
 		Email:        req.Email,
 		RefreshToken: req.RefreshToken,
-		UserID:       req.Owner.UserId,
-		FullName:     req.Owner.FullName,
+		UserID:       req.UserId,
+		FullName:     req.OwnerName,
 	}
 }
 

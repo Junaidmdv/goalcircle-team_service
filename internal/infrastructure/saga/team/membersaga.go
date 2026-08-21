@@ -6,31 +6,37 @@ import (
 	usrclient "github.com/Junaidmdv/goalcircle-protos/user/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga"
+	staffuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
 	teammemberuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teammember"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 )
 
 type TeamMemberSaga interface {
+	RegisterTeamMember(ctx context.Context, req *TeamMemberSagaState) (*TeamMemberSagaState, error)
 }
 
 type teamMemberSaga struct {
 	teamUsecase  team.TeamUsecase
-	teamMemberUc teammemberuc.TeamMemberUsecase
 	userclient   usrclient.AuthServiceClient
 	logger       logger.Logger
+	staffUsecase staffuc.StaffUsecase
 }
 
 type TeamMemberSagaState struct {
 	UserID       string
 	Code         string
-	Role         entity.UserRole
 	RefreshToken string
 	AddUserRes   *AddUserRoleRes
 }
 
-func NewTeamMemberSaga() TeamMemberSaga {
-	return &teamMemberSaga{}
+func NewTeamMemberSaga(tm team.TeamUsecase, sc staffuc.StaffUsecase, client usrclient.AuthServiceClient, logger logger.Logger) TeamMemberSaga {
+	return &teamMemberSaga{
+		teamUsecase:  tm,
+		staffUsecase: sc,
+		userclient:   client,
+		logger:       logger,
+	}
 }
 
 func (tm *teamMemberSaga) RegisterTeamMember(ctx context.Context, req *TeamMemberSagaState) (*TeamMemberSagaState, error) {
@@ -41,15 +47,14 @@ func (tm *teamMemberSaga) RegisterTeamMember(ctx context.Context, req *TeamMembe
 
 				r := sagaState.(*TeamMemberSagaState)
 
-				_,err:=tm.teamMemberUc.RegisterTeamMember(ctx, &teammemberuc.RegisterTeamMemberReq{
+				_, err := tm.teamMemberUc.RegisterTeamMember(ctx, &teammemberuc.RegisterTeamMemberReq{
 					UserID: r.UserID,
 					Code:   r.Code,
 				})
 
-				if err != nil{
-					return err 
+				if err != nil {
+					return err
 				}
-
 
 				return nil
 			},

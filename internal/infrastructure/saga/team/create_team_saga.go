@@ -2,10 +2,12 @@ package teamsaga
 
 import (
 	"context"
+	"time"
 
 	usrclient "github.com/Junaidmdv/goalcircle-protos/user/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga"
+	staffuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
 	teammemberuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teammember"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
@@ -17,33 +19,35 @@ type TeamSagaMaker interface {
 
 type teamSaga struct {
 	teamUsecase  team.TeamUsecase
-	teamMemberUc teammemberuc.TeamMemberUsecase
+	staffUsecase staffuc.StaffUsecase
 	userclient   usrclient.AuthServiceClient
 	logger       logger.Logger
 }
 
-func NewTeamSagaMaker(teamuc team.TeamUsecase, tmuc teammemberuc.TeamMemberUsecase, usrclient usrclient.AuthServiceClient, logger logger.Logger) TeamSagaMaker {
+func NewTeamSagaMaker(teamuc team.TeamUsecase, tmuc teammemberuc.TeamMemberUsecase, usrclient usrclient.AuthServiceClient, stuc staffuc.StaffUsecase, logger logger.Logger) TeamSagaMaker {
 	return &teamSaga{
 		teamUsecase:  teamuc,
-		teamMemberUc: tmuc,
+		staffUsecase: stuc,
 		userclient:   usrclient,
 		logger:       logger,
 	}
 }
 
 type TeamSagaState struct {
-	UserID        string
-	Role          entity.UserRole
-	RefreshToken  string
-	TeamName      string
-	City          string
-	Description   string
-	FullName      string
-	PhoneNum      string
-	Email         string
-	AddUserRes    *AddUserRoleRes
-	TeamRes       *CreateTeamRes
-	TeamMemberRes *TeamMemberRes
+	UserID       string
+	Role         entity.UserRole
+	RefreshToken string
+	TeamName     string
+	City         string
+	Description  string
+	FullName     string
+	PhoneNum     string
+	Email        string
+	DOB          time.Time
+	AddUserRes   *AddUserRoleRes
+	TeamRes      *CreateTeamRes
+	StaffRes     *staffuc.AddStaffRes
+	// TeamMemberRes *TeamMemberRes
 }
 
 func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*TeamSagaState, error) {
@@ -96,33 +100,39 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 
 				req, _ := sagaState.(*TeamSagaState)
 
-				res, err := ts.teamMemberUc.AddTeamOwner(ctx, &teammemberuc.AddTeamOwnerReq{
-					TeamID:   req.TeamRes.ID,
-					UserId:   req.UserID,
-					FullName: req.FullName,
-				},
-				)
+				res, err := ts.staffUsecase.AddStaff(ctx, &staffuc.AddStaffReq{
+					UserID:           req.UserID,
+					TeamID:           req.TeamRes.ID.String(),
+					FullName:         req.FullName,
+					Role:             entity.StaffRoleManagement,
+					Designation:      entity.StaffDesignationOwner,
+					DOB:              req.DOB,
+					TeamMemberStatus: entity.TeamMemberStatusActive,
+				})
 
 				if err != nil {
 					return err
 				}
 
-				req.TeamMemberRes = &TeamMemberRes{
+				req.StaffRes = &staffuc.AddStaffRes{
+					StaffID:      res.StaffID,
 					TeamMemberID: res.TeamMemberID,
-					TeamID:       req.TeamRes.ID,
-					UserID:       req.UserID,
-					FullName:     req.FullName,
-					Role:         req.Role,
+					FullName:     res.FullName,
+					Age:          res.Age,
+					Designation:  res.Designation,
+					Role:         res.Role,
+					PresignedUrl: res.PresignedUrl,
 				}
 
 				return nil
 			},
 			Compensate: func(ctx context.Context, sagaState interface{}) error {
-				req, _ := sagaState.(*TeamSagaState)
+				// req, _ := sagaState.(*TeamSagaState)
 
-				if err := ts.teamMemberUc.DeleteTeamOwner(ctx, &req.TeamMemberRes.TeamMemberID); err != nil {
-					return err
-				}
+				// if err := ts.teamMemberUc.DeleteTeamOwner(ctx, &req.TeamMemberRes.TeamMemberID); err != nil {
+				// 	return err
+				// }
+
 				return nil
 			},
 		},

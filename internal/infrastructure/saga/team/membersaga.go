@@ -6,7 +6,6 @@ import (
 	usrclient "github.com/Junaidmdv/goalcircle-protos/user/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga"
-	staffuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
 	teammemberuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teammember"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
@@ -20,20 +19,22 @@ type teamMemberSaga struct {
 	teamUsecase  team.TeamUsecase
 	userclient   usrclient.AuthServiceClient
 	logger       logger.Logger
-	staffUsecase staffuc.StaffUsecase
+	teamMemberUc teammemberuc.TeamMemberUsecase
 }
 
 type TeamMemberSagaState struct {
-	UserID       string
-	Code         string
-	RefreshToken string
-	AddUserRes   *AddUserRoleRes
+	UserID        string
+	Code          string
+	Role          entity.UserRole
+	RefreshToken  string
+	AddUserRes    *AddUserRoleRes
+	TeamMemberRes *teammemberuc.RegisterTeamMemberRes
 }
 
-func NewTeamMemberSaga(tm team.TeamUsecase, sc staffuc.StaffUsecase, client usrclient.AuthServiceClient, logger logger.Logger) TeamMemberSaga {
+func NewTeamMemberSaga(tm team.TeamUsecase, teamMemberUc teammemberuc.TeamMemberUsecase, client usrclient.AuthServiceClient, logger logger.Logger) TeamMemberSaga {
 	return &teamMemberSaga{
 		teamUsecase:  tm,
-		staffUsecase: sc,
+		teamMemberUc: teamMemberUc,
 		userclient:   client,
 		logger:       logger,
 	}
@@ -42,15 +43,25 @@ func NewTeamMemberSaga(tm team.TeamUsecase, sc staffuc.StaffUsecase, client usrc
 func (tm *teamMemberSaga) RegisterTeamMember(ctx context.Context, req *TeamMemberSagaState) (*TeamMemberSagaState, error) {
 	steps := []saga.SagaStep{
 		{
-			Name: "team member",
+			Name: "register team member",
 			Action: func(ctx context.Context, sagaState interface{}) error {
 
 				r := sagaState.(*TeamMemberSagaState)
 
-				_, err := tm.teamMemberUc.RegisterTeamMember(ctx, &teammemberuc.RegisterTeamMemberReq{
+				res, err := tm.teamMemberUc.RegisterTeamMember(ctx, &teammemberuc.RegisterTeamMemberReq{
 					UserID: r.UserID,
 					Code:   r.Code,
 				})
+
+				r.TeamMemberRes = &teammemberuc.RegisterTeamMemberRes{
+					InvitationID: res.InvitationID,
+					TeamMemberID: res.TeamMemberID,
+					TeamID:       res.TeamID,
+					UserID:       res.UserID,
+					Role:         res.Role,
+					Status:       res.Status,
+					JoinedAt:     res.JoinedAt,
+				}
 
 				if err != nil {
 					return err
@@ -59,6 +70,18 @@ func (tm *teamMemberSaga) RegisterTeamMember(ctx context.Context, req *TeamMembe
 				return nil
 			},
 			Compensate: func(ctx context.Context, sagaState interface{}) error {
+
+				r := sagaState.(*TeamMemberSagaState)
+
+				err := tm.teamMemberUc.CompensateRegisterTeamMember(ctx, &teammemberuc.CompensateRegisterTeamMemberReq{
+					TeamMemberID: r.TeamMemberRes.TeamMemberID,
+					InvitationID: r.TeamMemberRes.InvitationID, 
+					UserID: r.TeamMemberRes.UserID,
+				})
+				if err != nil {
+					return err
+				}
+
 				return nil
 			},
 		},

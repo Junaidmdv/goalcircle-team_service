@@ -2,6 +2,7 @@ package teammemberuc
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
@@ -30,7 +31,23 @@ func NewTeamMemberUsecase(tmr teammember.TeamMemberRepository, ti teaminvite.Tea
 	}
 }
 
+
+
 func (tm *teamMemberUsecase) RegisterTeamMember(ctx context.Context, req *RegisterTeamMemberReq) (*RegisterTeamMemberRes, error) {
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		tm.logger.Error("token error", "error", errors.New("invalid user id from token"))
+		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+	hasMembership, err := tm.teamMemberRepo.HasUnreleasedMembership(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if hasMembership {
+		return nil, apperror.NewBadRequestError("user already has membershipt with another team")
+	}
 
 	invite, err := tm.teamInviteRepo.GetInvitationByCode(ctx, req.Code)
 	if err != nil {
@@ -38,32 +55,57 @@ func (tm *teamMemberUsecase) RegisterTeamMember(ctx context.Context, req *Regist
 	}
 
 	if time.Now().After(invite.ExpiresAt) {
-		return nil, apperror.NewFailedPreCondition("invitation code expired")
+		return nil, apperror.NewFailedPreCondition(
+			"invitation code expired",
+		)
 	}
 
 	if invite.IsUsed {
-		return nil, apperror.NewFailedPreCondition("invitation code already used")
+		return nil, apperror.NewFailedPreCondition(
+			"invitation code already used",
+		)
 	}
 
-	if err := tm.teamMemberRepo.UpdateUserID(ctx, &invite.TeamMemberID, req.UserID); err != nil {
+	if err := tm.teamMemberRepo.UpdateUserID(
+		ctx,
+		invite.TeamMemberID,
+		userID,
+	); err != nil {
 		return nil, err
 	}
-	if err := tm.teamInviteRepo.UpdateTeamInvite(ctx, invite.ID, &teaminvite.UpdateTeamInviteReq{
-		UserID: req.UserID,
-		IsUsed: true,
-	}); err != nil {
-		return nil, err
 
+	if err := tm.teamInviteRepo.UpdateTeamInvite(
+		ctx,
+		invite.ID,
+		&teaminvite.UpdateTeamInviteReq{
+			UserID: req.UserID,
+			IsUsed: true,
+		},
+	); err != nil {
+		return nil, err
+	}
+
+	member, err := tm.teamMemberRepo.GetTeamMemberByID(
+		ctx,
+		invite.TeamMemberID,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	return &RegisterTeamMemberRes{
 		InvitationID: invite.ID,
+		TeamMemberID: member.ID,
+		TeamID:       member.TeamID,
+		UserID:       userID,
+		Role:         string(member.Role),
+		Status:       string(member.Status),
+		JoinedAt:     member.JoinedAt,
 	}, nil
-
 }
 
 func (tm *teamMemberUsecase) CompensateRegisterTeamMember(ctx context.Context, req *CompensateRegisterTeamMemberReq) error {
-	if err := tm.teamMemberRepo.UpdateUserID(ctx, &req.InvitationID, ""); err != nil {
+	if err := tm.teamMemberRepo.UpdateUserID(ctx, req.TeamMemberID, req.UserID); err != nil {
 		return err
 	}
 	if err := tm.teamInviteRepo.UpdateTeamInvite(ctx, req.InvitationID, &teaminvite.UpdateTeamInviteReq{

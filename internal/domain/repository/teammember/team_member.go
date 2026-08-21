@@ -15,7 +15,7 @@ import (
 type TeamMemberRepository interface {
 	AddTeamMember(context.Context, *entity.TeamMember) (*entity.TeamMember, error)
 	RemoveTeamMember(context.Context, *uuid.UUID) error
-	UpdateUserID(context.Context, *uuid.UUID, string) error
+	UpdateUserID(ctx context.Context, teamMemberID uuid.UUID, userID uuid.UUID) error
 	GetTeamMemeberRole(context.Context, uuid.UUID, uuid.UUID) (entity.TeamMemberRole, error)
 	GetStaffDesignation(context.Context, uuid.UUID) (entity.StaffDesignation, error)
 	IsTeamMemberExist(context.Context, uuid.UUID, uuid.UUID) (bool, error)
@@ -24,7 +24,7 @@ type TeamMemberRepository interface {
 	GetTeamMemberByID(context.Context, uuid.UUID) (*entity.TeamMember, error)
 	HasUnreleasedMembership(ctx context.Context, userID uuid.UUID) (bool, error)
 	UpdateStatus(ctx context.Context, teamMemberID uuid.UUID, status entity.TeamMemberStatus) error
-	ReleaseMember(ctx context.Context, teamID,memberID uuid.UUID) error
+	ReleaseMember(ctx context.Context, teamID, memberID uuid.UUID) error
 }
 
 type teamMemberRepository struct {
@@ -71,7 +71,7 @@ func (tm *teamMemberRepository) RemoveTeamMember(ctx context.Context, teamteamMe
 	return nil
 }
 
-func (tm *teamMemberRepository) UpdateUserID(ctx context.Context, teamMemberID *uuid.UUID, userId string) error {
+func (tm *teamMemberRepository) UpdateUserID(ctx context.Context, teamMemberID uuid.UUID, userId uuid.UUID) error {
 
 	if err := tm.db.WithContext(ctx).Where("team_member_id=?", teamMemberID).Update("user_id", userId).Error; err != nil {
 		tm.logger.Error("database error", "error", err)

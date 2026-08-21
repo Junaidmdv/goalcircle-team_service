@@ -11,6 +11,7 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/permission"
 	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/storage"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
@@ -35,6 +36,7 @@ type StaffUsecase interface {
 type staffUsecase struct {
 	teamMemberRepo teammember.TeamMemberRepository
 	staffRepo      staffrepo.StaffRepository
+	inviteRepo     teaminvite.TeamInviteRepository
 	date           datetime.DateCalculator
 	objstore       storage.ObjectStorage
 	objcfg         *config.ObjectStorageConfig
@@ -46,6 +48,7 @@ func NewTeamStaffUsecase(tm teammember.TeamMemberRepository,
 	date datetime.DateCalculator,
 	objst storage.ObjectStorage,
 	cnfg *config.ObjectStorageConfig,
+	inviteRepo teaminvite.TeamInviteRepository,
 	logger logger.Logger) StaffUsecase {
 	return &staffUsecase{
 		teamMemberRepo: tm,
@@ -54,6 +57,7 @@ func NewTeamStaffUsecase(tm teammember.TeamMemberRepository,
 		objstore:       objst,
 		objcfg:         cnfg,
 		logger:         logger,
+		inviteRepo:     inviteRepo,
 	}
 }
 
@@ -412,8 +416,8 @@ func (su *staffUsecase) ListTeamStaff(ctx context.Context, req *ListTeamStaffReq
 			FullName:     s.FullName,
 			Role:         string(s.Role),
 			Designation:  string(s.Designation),
-			JoinedAt:     s.TeamMember.JoinedAt.Format("2006-01-02 15:04:05"),
-			ReleasedAt:   s.TeamMember.ReleasedAt.Format("2006-01-02 15:04:05"),
+			JoinedAt:     s.TeamMember.JoinedAt,
+			ReleasedAt:   s.TeamMember.ReleasedAt,
 			Status:       string(s.TeamMember.Status),
 		})
 

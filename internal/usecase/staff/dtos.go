@@ -157,3 +157,14 @@ type GetStaffRes struct {
 	JoinedAt     string
 	ReleasedAt   string
 }
+
+
+type RegisterTeamMemberReq struct{  
+	UserID string 
+	Code string 
+
+}
+
+type RegisterTeamMemberRes struct{
+
+}

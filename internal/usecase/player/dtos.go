@@ -30,14 +30,29 @@ type AddPlayerRes struct {
 	PresignedUrl string
 }
 
-type UpdatPlayerStatusReq struct {
-	PlayerID string
-	Status   entity.PlayerStatus
+type UpdatePlayerReq struct {
+	UserID       string
+	TeamID       string
+	PlayerID     string
+	FullName     *string
+	DateOfBirth  *time.Time
+	JerseyNumber *int32
+	Position     *entity.PlayerPosition
+	Height       *float32
+	Weight       *float32
+	Status       *entity.PlayerStatus
 }
 
-type UpdatePlayerStatusRes struct {
-	PlayerID string
-	Status   entity.PlayerStatus
+type UpdatePlayersRes struct {
+	PlayerID     uuid.UUID
+	TeamMemberID uuid.UUID
+	FullName     string
+	DateOfBirth  time.Time
+	JerseyNumber int32
+	Position     entity.PlayerPosition
+	Height       float32
+	Weight       float32
+	Status       entity.PlayerStatus
 }
 
 type ListTeamPlayersReq struct {
@@ -66,6 +81,7 @@ type PaginateDetails struct {
 }
 
 type GetPlayerReq struct {
+	TeamID   string
 	PlayerID string
 }
 
@@ -89,15 +105,19 @@ type ReleasePlayerReq struct {
 }
 
 type ReleasePlayerRes struct {
-	Success bool
+	ID           uuid.UUID
+	TeamMemberID uuid.UUID
+	FullName     string
+	JerseyNumber int32
+	Position     entity.PlayerPosition
+	Status       entity.PlayerStatus
 }
 
 type UpdatePlayerImageReq struct {
-	UserID      string
-	TeamID      string
-	PlayerID    string
-	ImageData   []byte
-	ContentType string
+	TeamID    string
+	UserID    string
+	PlayerID  string
+	ImageData []byte
 }
 
 type UpdatePlayerImageRes struct {
@@ -116,4 +136,14 @@ type GetPlayerPresignedUrlRes struct {
 	TeamID       string
 	PlayerId     string
 	PresignedUrl string
+}
+
+type RemovePlayerImageReq struct {
+	UserID   string
+	TeamID   string
+	PlayerID string
+}
+
+type RemovePlayerImageRes struct {
+	Success bool
 }

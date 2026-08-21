@@ -15,11 +15,12 @@ type PlayerRepository interface {
 	CreatePlayer(context.Context, *entity.Player) (*entity.Player, error)
 	UpdatePlayerStatus(context.Context, *uuid.UUID, *entity.PlayerStatus) error
 	GetTeamPlayers(context.Context, *ListUserReq) ([]entity.Player, int64, error)
-	GetPlayer(context.Context, *uuid.UUID) (*entity.Player, error)
-	GetPlayerStatus(context.Context, uuid.UUID, uuid.UUID) (entity.PlayerStatus, error)
+	GetPlayer(context.Context, uuid.UUID, uuid.UUID) (*entity.Player, error)
 	UpdateImageKey(context.Context, uuid.UUID, string) error
 	IsPlayerExist(context.Context, uuid.UUID) (bool, error)
-	ReleasePlayer(context.Context, uuid.UUID) error 
+	PlayerStatusArchived(context.Context, uuid.UUID) error
+	GetPlayerImageKey(ctx context.Context, playerID uuid.UUID) (string, error)
+	UpdatePlayerDetails(ctx context.Context, playerID uuid.UUID, player *entity.Player) error
 }
 
 type playerRepository struct {
@@ -87,9 +88,9 @@ func (pr *playerRepository) GetTeamPlayers(ctx context.Context, details *ListUse
 	return users, total, nil
 }
 
-func (pr *playerRepository) GetPlayer(ctx context.Context, playerID *uuid.UUID) (*entity.Player, error) {
+func (pr *playerRepository) GetPlayer(ctx context.Context, teamID uuid.UUID, playerID uuid.UUID) (*entity.Player, error) {
 	var player entity.Player
-	if err := pr.db.WithContext(ctx).First(&player, playerID).Error; err != nil {
+	if err := pr.db.WithContext(ctx).Joins("JOIN team_members tm ON players.team_member_id=tm.id").Preload("TeamMember").Where("players.id=? AND tm.team_id=?", playerID, teamID).First(&player).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.NewNotFoundError("player is not found")
 		}
@@ -158,11 +159,11 @@ func (pr *playerRepository) IsPlayerExist(ctx context.Context, playerId uuid.UUI
 	return true, nil
 }
 
-func (pr *playerRepository) ReleasePlayer(ctx context.Context, playerID uuid.UUID) error {
-	result := pr.db.WithContext(ctx).Model(&entity.Player{}).Where("id=?", playerID).Update("status", entity.PlayerStatusReleased)
+func (pr *playerRepository) PlayerStatusArchived(ctx context.Context, playerID uuid.UUID) error {
+	result := pr.db.WithContext(ctx).Model(&entity.Player{}).Where("id=?", playerID).Update("status", entity.PlayerStatusArchieved)
 
 	if result.Error == nil {
-		pr.logger.Error("databahttp://localhost:9000/goalcircle-media//players/800fe6df-0ee5-4a77-a1aa-3493c9ec0668/logo.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=minioadmin%2F20260806%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260806T234005Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=4d20f589dd165faefb524255d5a0d91f3a57875cf7dafb1d29b9af1913f58b48se failure", "method", "release player", "error", result.Error)
+		pr.logger.Error("databaser error", "method", "release player", "error", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -172,3 +173,37 @@ func (pr *playerRepository) ReleasePlayer(ctx context.Context, playerID uuid.UUI
 	return nil
 }
 
+func (pr *playerRepository) GetPlayerImageKey(ctx context.Context, playerID uuid.UUID) (string, error) {
+	var imageKey string
+
+	result := pr.db.WithContext(ctx).
+		Model(&entity.Player{}).
+		Where("id = ?", playerID).
+		Pluck("image_key", &imageKey)
+
+	if result.Error != nil {
+		return "", result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return "", gorm.ErrRecordNotFound
+	}
+
+	return imageKey, nil
+}
+
+func (pr *playerRepository) UpdatePlayerDetails(ctx context.Context, playerID uuid.UUID, player *entity.Player) error {
+	result := pr.db.WithContext(ctx).
+		Model(&entity.Player{}).
+		Where("id = ?", playerID).
+		Updates(player)
+
+	if result.Error != nil {
+		return apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return apperror.NewNotFoundError("failed to find player id")
+	}
+	return nil
+}

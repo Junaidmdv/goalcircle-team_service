@@ -3,6 +3,7 @@ package teammember
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
@@ -23,6 +24,7 @@ type TeamMemberRepository interface {
 	GetTeamMemberByID(context.Context, uuid.UUID) (*entity.TeamMember, error)
 	HasUnreleasedMembership(ctx context.Context, userID uuid.UUID) (bool, error)
 	UpdateStatus(ctx context.Context, teamMemberID uuid.UUID, status entity.TeamMemberStatus) error
+	ReleaseMember(ctx context.Context, teamID,memberID uuid.UUID) error
 }
 
 type teamMemberRepository struct {
@@ -213,3 +215,29 @@ func (tr *teamMemberRepository) UpdateStatus(ctx context.Context, teamMemberID u
 	return nil
 }
 
+func (tr *teamMemberRepository) ReleaseMember(
+	ctx context.Context,
+	teamID uuid.UUID,
+	memberID uuid.UUID,
+) error {
+	now := time.Now()
+
+	result := tr.db.WithContext(ctx).
+		Model(&entity.TeamMember{}).
+		Where("id = ? AND team_id=?", teamID, memberID).
+		Updates(map[string]interface{}{
+			"status":      entity.TeamMemberStatusRelease,
+			"released_at": now,
+			"updated_at":  now,
+		})
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}

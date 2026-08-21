@@ -27,9 +27,17 @@ type AddPlayerRes struct {
 	PlayerStatus  entity.PlayerStatus
 }
 
-type UpdatePlayerStatusReq struct {
-	PlayerID     string              `json:"full_name" validate:"required"`
-	PlayerStatus entity.PlayerStatus `json:"player_status" validate:"required,player-status"`
+type UpdatePlayerReq struct {
+	UserID       string                 `json:"user_id" validate:"required"`
+	TeamID       string                 `json:"team_id" validate:"required"`
+	PlayerID     string                 `json:"player_id" validate:"required"`
+	FullName     *string                `json:"full_name,omitempty" validate:"omitempty,min=2,max=100"`
+	DateOfBirth  *time.Time             `json:"date_of_birth,omitempty"`
+	JerseyNumber *int32                 `json:"jersey_number,omitempty" validate:"omitempty,min=1,max=99"`
+	Position     *entity.PlayerPosition `json:"position,omitempty"`
+	Height       *float32               `json:"height,omitempty" validate:"omitempty,gt=0"`
+	Weight       *float32               `json:"weight,omitempty" validate:"omitempty,gt=0"`
+	Status       *entity.PlayerStatus   `json:"status,omitempty" validate:"omitempty,player-status"`
 }
 
 type GetPlayerReq struct {

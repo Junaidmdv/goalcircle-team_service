@@ -123,7 +123,7 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 
 	objectName := fmt.Sprintf("/players/%s/logo.webp", playerRes.ID)
 
-	key, err := pu.ObjectStorage.Upload(ctx, pu.ObjectStorageConfig.Bucket, objectName, bytes.NewReader(webpBytes), int64(len(webpBytes)), input.ContentType)
+	key, err := pu.ObjectStorage.Upload(ctx, pu.ObjectStorageConfig.Bucket, objectName, bytes.NewReader(webpBytes), int64(len(webpBytes)), "image/webp")
 
 	if err != nil {
 		return nil, err
@@ -259,7 +259,7 @@ func (pu *playerUsecase) ListTeamPlayers(ctx context.Context, input *ListTeamPla
 
 	var playerList []PlayerRes
 
-	for _, player := range players {
+	for i, player := range players {
 		playerList = append(playerList, PlayerRes{
 			ID:           player.ID,
 			TeamMemberID: player.TeamMemberID,
@@ -268,6 +268,12 @@ func (pu *playerUsecase) ListTeamPlayers(ctx context.Context, input *ListTeamPla
 			Position:     player.Position,
 			Status:       player.Status,
 		})
+
+		presignedUrl, err := pu.ObjectStorage.GetPresignedURL(ctx, pu.ObjectStorageConfig.Bucket, player.ImageKey, pu.ObjectStorageConfig.PresignedURLExpiry)
+		if err == nil {
+			playerList[i].ImageUrl = presignedUrl
+		}
+
 	}
 
 	return playerList, &PaginateDetails{
@@ -353,6 +359,8 @@ func (pu *playerUsecase) ReleasePlayer(ctx context.Context, input *ReleasePlayer
 		JerseyNumber: playerDetails.JerseyNumber,
 		Position:     playerDetails.Position,
 		Status:       playerDetails.Status,
+		ReleasedAt:   playerDetails.TeamMember.ReleasedAt,
+		JoinedAt:     playerDetails.TeamMember.JoinedAt,
 	}, nil
 }
 

@@ -3,7 +3,7 @@ module github.com/Junaidmdv/goalcircle-team_service
 go 1.25.1
 
 require (
-	github.com/Junaidmdv/goalcircle-protos v0.0.0-20260820210049-6e0b59276458
+	github.com/Junaidmdv/goalcircle-protos v0.0.0-20260821044000-aea41b6eb05f
 	github.com/chai2010/webp v1.4.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1

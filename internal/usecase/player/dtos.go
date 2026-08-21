@@ -17,7 +17,6 @@ type AddPlayerReq struct {
 	Height       float32
 	Weight       float32
 	ImageBytes   []byte
-	ContentType  string
 }
 
 type AddPlayerRes struct {
@@ -71,6 +70,7 @@ type PlayerRes struct {
 	JerseyNumber int32
 	Position     entity.PlayerPosition
 	Status       entity.PlayerStatus
+	ImageUrl     string
 }
 
 type PaginateDetails struct {
@@ -111,6 +111,8 @@ type ReleasePlayerRes struct {
 	JerseyNumber int32
 	Position     entity.PlayerPosition
 	Status       entity.PlayerStatus
+	ReleasedAt   time.Time
+	JoinedAt     time.Time
 }
 
 type UpdatePlayerImageReq struct {

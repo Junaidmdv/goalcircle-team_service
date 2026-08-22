@@ -26,9 +26,12 @@ type CreateTeamRes struct {
 }
 
 type TeamMemberRes struct {
+	StaffID      uuid.UUID
 	TeamMemberID uuid.UUID
 	TeamID       uuid.UUID
 	UserID       string
 	FullName     string
-	Role         entity.UserRole
+	Age          int32
+	Role         entity.StaffRole
+	Designation  entity.StaffDesignation
 }

@@ -85,8 +85,8 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	teamInviteRepo := teaminvite.NewTeamMemberInviteRepository(psqldb.DB, gs.logger)
 
 	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater, TeamMemberRepository, playerRepo, objectStorage, gs.Config.StorageConfig)
-	teamMemberUc := teammemberuc.NewTeamMemberUsecase(TeamMemberRepository, teamInviteRepo, gs.logger)
-	teamStaffUc := staffuc.NewTeamStaffUsecase(TeamMemberRepository, staffRepository, datecalculater)
+	teamMemberUc := teammemberuc.NewTeamMemberUsecase(TeamMemberRepository, teamInviteRepo, staffRepository, gs.logger)
+	teamStaffUc := staffuc.NewTeamStaffUsecase(TeamMemberRepository, staffRepository, datecalculater, objectStorage, gs.Config.StorageConfig, gs.logger)
 	playerUc := playeruc.NewPlayerUsecase(playerRepo, TeamMemberRepository, teamRepository, gs.logger, objectStorage, gs.Config.StorageConfig, codeGenerater)
 	teaminviteUc := inviteuc.NewTeamInviteUsecase(teamInviteRepo, codeGenerater, TeamMemberRepository)
 
@@ -97,8 +97,9 @@ func (gs *GRPCServer) BootstrapSetup() error {
 
 	userAuthpb := userclient_pb.NewAuthServiceClient(userclient.Conn)
 
-	teamSaga := teamsaga.NewTeamSagaMaker(teamUsecase, teamMemberUc, userAuthpb, gs.logger)
-	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut, validater)
+	teamSaga := teamsaga.NewTeamSagaMaker(teamUsecase, teamMemberUc, userAuthpb, teamStaffUc, gs.logger)
+	teamMemberSaga := teamsaga.NewTeamMemberSaga(teamUsecase, teamMemberUc, userAuthpb, gs.logger)
+	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut, validater, teamMemberSaga)
 	playerHandler := playerHandler.NewPlayerHandler(playerUc, gs.logger, &gs.Config.Server.TimeOut, validater)
 	staffHandler := staffHandler.NewStaffHandler(teamStaffUc, gs.Config.Server.TimeOut)
 	inviteHandler := inviteHandler.NewTeamInviteHandler(teaminviteUc, gs.Config.Server.TimeOut)

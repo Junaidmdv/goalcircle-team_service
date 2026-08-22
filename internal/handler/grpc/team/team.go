@@ -88,12 +88,12 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 			RefreshTokenExpiry: timestamppb.New(res.AddUserRes.RefreshTokenExpiry),
 		},
 		TeamOwner: &pb.TeamMemberDetails{
-			StaffId:      res.StaffRes.StaffID.String(),
-			TeamMemberId: res.StaffRes.TeamMemberID.String(),
+			StaffId:      res.TeamMemberRes.StaffID.String(),
+			TeamMemberId: res.TeamMemberRes.TeamMemberID.String(),
 			FullName:     res.FullName,
-			Age:          res.StaffRes.Age,
-			Designatin:   string(res.StaffRes.Designation),
-			Role:         string(res.StaffRes.Role),
+			Age:          res.TeamMemberRes.Age,
+			Designatin:   string(res.TeamMemberRes.Designation),
+			Role:         string(res.TeamMemberRes.Role),
 		},
 	}, nil
 }
@@ -236,8 +236,6 @@ func (th *TeamHandler) RegisterTeamMember(c context.Context, req *pb.RegisterTea
 
 	return &pb.RegisterTeamMemberRes{
 
-		
-
 		UserDetails: &pb.UserRes{
 			SessionId:          res.AddUserRes.SessionID,
 			UserId:             res.AddUserRes.UserID,
@@ -356,3 +354,4 @@ func (th *TeamHandler) GetTeam(ctx context.Context, req *pb.GetTeamReq) (*pb.Get
 		ViceCaptionId: res.ViceCaptainID,
 	}, nil
 }
+

@@ -5,15 +5,30 @@ import (
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/google/uuid"
-)
+) 
 
-type AddTeamOwnerRes struct {
-	TeamMemberID uuid.UUID `gorm:"primaryKey"`
-	TeamID       uuid.UUID
-	UserID       string
-	FullName     string
-	Role         entity.TeamMemberRole
+
+
+type AddOwnerReq struct {
+	UserID           string
+	TeamID           string
+	FullName         string
+	Role             entity.StaffRole
+	Designation      entity.StaffDesignation
+	DOB              time.Time
+	TeamMemberStatus entity.TeamMemberStatus
 }
+
+type AddOwnerRes struct {
+	StaffID      uuid.UUID
+	TeamMemberID uuid.UUID
+	FullName     string
+	Age          int32
+	Designation  entity.StaffDesignation
+	Role         entity.StaffRole
+}
+
+
 
 type RegisterTeamMemberReq struct {
 	UserID string

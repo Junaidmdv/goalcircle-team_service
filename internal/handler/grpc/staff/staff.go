@@ -34,7 +34,7 @@ func NewStaffHandler(stafuc staffuc.StaffUsecase, timeout time.Duration) *StaffH
 
 }
 
-func (sh *StaffHandler) AddStaff(ctx context.Context, stream grpc.ClientStreamingServer[pb.AddStaffReq, pb.AddStaffRes]) error {
+func (sh *StaffHandler) AddStaff(stream grpc.ClientStreamingServer[pb.AddStaffReq, pb.AddStaffRes]) error {
 
 	c := stream.Context()
 
@@ -226,7 +226,7 @@ func (sh *StaffHandler) GetStaff(ctx context.Context, input *pb.GetStaffReq) (*p
 	}, nil
 }
 
-func (sh *StaffHandler) UpdateStaffImage(ctx context.Context, stream grpc.ClientStreamingServer[pb.UpdateStaffImageReq, pb.UpdateStaffImageRes]) error {
+func (sh *StaffHandler) UpdateStaffImage(stream grpc.ClientStreamingServer[pb.UpdateStaffImageReq, pb.UpdateStaffImageRes]) error {
 	c := stream.Context()
 	ctx, cancel := context.WithTimeout(c, sh.timeOut)
 	defer cancel()

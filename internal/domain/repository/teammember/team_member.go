@@ -53,7 +53,6 @@ func (tm *teamMemberRepository) IsTeamMemberExist(ctx context.Context, teamID uu
 	return count > 0, nil
 }
 
-func (tm *teamMemberRepository) IsTeamMemberExisted()
 
 func (tm *teamMemberRepository) AddTeamMember(ctx context.Context, input *entity.TeamMember) (*entity.TeamMember, error) {
 	if err := tm.db.WithContext(ctx).Create(input).Error; err != nil {

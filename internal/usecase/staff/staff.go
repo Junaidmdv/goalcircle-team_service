@@ -11,7 +11,6 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/permission"
 	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
-	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/storage"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
@@ -36,7 +35,6 @@ type StaffUsecase interface {
 type staffUsecase struct {
 	teamMemberRepo teammember.TeamMemberRepository
 	staffRepo      staffrepo.StaffRepository
-	inviteRepo     teaminvite.TeamInviteRepository
 	date           datetime.DateCalculator
 	objstore       storage.ObjectStorage
 	objcfg         *config.ObjectStorageConfig
@@ -48,7 +46,6 @@ func NewTeamStaffUsecase(tm teammember.TeamMemberRepository,
 	date datetime.DateCalculator,
 	objst storage.ObjectStorage,
 	cnfg *config.ObjectStorageConfig,
-	inviteRepo teaminvite.TeamInviteRepository,
 	logger logger.Logger) StaffUsecase {
 	return &staffUsecase{
 		teamMemberRepo: tm,
@@ -57,9 +54,18 @@ func NewTeamStaffUsecase(tm teammember.TeamMemberRepository,
 		objstore:       objst,
 		objcfg:         cnfg,
 		logger:         logger,
-		inviteRepo:     inviteRepo,
 	}
 }
+
+// func (su *staffUsecase) AddOwner(ctx context.Context, req *AddOwnerReq) (*AddOwnerRes, error) {
+
+
+
+
+
+
+
+
 
 func (su *staffUsecase) AddStaff(ctx context.Context, req *AddStaffReq) (*AddStaffRes, error) {
 
@@ -121,26 +127,32 @@ func (su *staffUsecase) AddStaff(ctx context.Context, req *AddStaffReq) (*AddSta
 		return nil, err
 	}
 
-	webbytes, err := imageutil.ConvertImageIntoWebpbFormate(req.ImageBytes)
-	if err != nil {
-		return nil, err
-	}
+	var presignedUrl string
 
-	objectName := fmt.Sprintf("staff/%s/profile.webp", staff.ID)
+	if staff.Designation != entity.StaffDesignationOwner {
 
-	key, err := su.objstore.Upload(ctx, su.objcfg.Bucket, objectName, bytes.NewReader(webbytes), int64(len(webbytes)), "image/webp")
+		webbytes, err := imageutil.ConvertImageIntoWebpbFormate(req.ImageBytes)
+		if err != nil {
+			return nil, err
+		}
 
-	if err != nil {
-		return nil, err
-	}
+		objectName := fmt.Sprintf("staff/%s/profile.webp", staff.ID)
 
-	if err := su.staffRepo.UpdateImageKey(ctx, staff.ID, key); err != nil {
-		return nil, err
-	}
+		key, err := su.objstore.Upload(ctx, su.objcfg.Bucket, objectName, bytes.NewReader(webbytes), int64(len(webbytes)), "image/webp")
 
-	presignedUrl, err := su.objstore.GetPresignedURL(ctx, su.objcfg.Bucket, key, su.objcfg.PresignedURLExpiry)
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
+
+		if err := su.staffRepo.UpdateImageKey(ctx, staff.ID, key); err != nil {
+			return nil, err
+		}
+
+		presignedUrl, err = su.objstore.GetPresignedURL(ctx, su.objcfg.Bucket, key, su.objcfg.PresignedURLExpiry)
+		if err != nil {
+			return nil, err
+		}
+
 	}
 
 	age := su.date.CalculateAge(req.DOB)

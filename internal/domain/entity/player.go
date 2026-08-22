@@ -16,6 +16,7 @@ const (
 	PlayerStatusInvalid   PlayerStatus = "INVALID"
 )
 
+
 type PlayerPosition string
 
 const (

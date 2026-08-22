@@ -19,35 +19,33 @@ type TeamSagaMaker interface {
 
 type teamSaga struct {
 	teamUsecase  team.TeamUsecase
-	staffUsecase staffuc.StaffUsecase
 	userclient   usrclient.AuthServiceClient
+	teamMemberUc teammemberuc.TeamMemberUsecase
 	logger       logger.Logger
 }
 
 func NewTeamSagaMaker(teamuc team.TeamUsecase, tmuc teammemberuc.TeamMemberUsecase, usrclient usrclient.AuthServiceClient, stuc staffuc.StaffUsecase, logger logger.Logger) TeamSagaMaker {
 	return &teamSaga{
-		teamUsecase:  teamuc,
-		staffUsecase: stuc,
-		userclient:   usrclient,
-		logger:       logger,
+		teamUsecase: teamuc,
+		userclient:  usrclient,
+		logger:      logger,
 	}
 }
 
 type TeamSagaState struct {
-	UserID       string
-	Role         entity.UserRole
-	RefreshToken string
-	TeamName     string
-	City         string
-	Description  string
-	FullName     string
-	PhoneNum     string
-	Email        string
-	DOB          time.Time
-	AddUserRes   *AddUserRoleRes
-	TeamRes      *CreateTeamRes
-	StaffRes     *staffuc.AddStaffRes
-	// TeamMemberRes *TeamMemberRes
+	UserID        string
+	Role          entity.UserRole
+	RefreshToken  string
+	TeamName      string
+	City          string
+	Description   string
+	FullName      string
+	PhoneNum      string
+	Email         string
+	DOB           time.Time
+	AddUserRes    *AddUserRoleRes
+	TeamRes       *CreateTeamRes
+	TeamMemberRes *TeamMemberRes
 }
 
 func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*TeamSagaState, error) {
@@ -100,7 +98,7 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 
 				req, _ := sagaState.(*TeamSagaState)
 
-				res, err := ts.staffUsecase.AddStaff(ctx, &staffuc.AddStaffReq{
+				res, err := ts.teamMemberUc.AddOwner(ctx, &teammemberuc.AddOwnerReq{
 					UserID:           req.UserID,
 					TeamID:           req.TeamRes.ID.String(),
 					FullName:         req.FullName,
@@ -114,14 +112,13 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 					return err
 				}
 
-				req.StaffRes = &staffuc.AddStaffRes{
+				req.TeamMemberRes = &TeamMemberRes{
 					StaffID:      res.StaffID,
 					TeamMemberID: res.TeamMemberID,
 					FullName:     res.FullName,
 					Age:          res.Age,
 					Designation:  res.Designation,
 					Role:         res.Role,
-					PresignedUrl: res.PresignedUrl,
 				}
 
 				return nil

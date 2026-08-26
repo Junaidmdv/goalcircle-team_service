@@ -386,3 +386,9 @@ func (tu *teamUsecase) GetPresignedURL(ctx context.Context, input *GetPresignedU
 		PresignedUrl: presignedUrl,
 	}, nil
 }
+
+func (th *teamUsecase) LeaveTeam(ctx context.Context, input *LeaveTeamReq) (*LeaveTeamRes, error) {  
+
+	
+	return nil, nil
+}

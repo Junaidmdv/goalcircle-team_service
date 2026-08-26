@@ -328,7 +328,9 @@ func (th *TeamHandler) GetPresignedURL(ctx context.Context, req *pb.GetPresigned
 		TeamId:       res.TeamID,
 		PresignedUrl: res.PresignedUrl,
 	}, nil
-}
+} 
+
+
 
 func (th *TeamHandler) GetTeam(ctx context.Context, req *pb.GetTeamReq) (*pb.GetTeamRes, error) {
 
@@ -355,3 +357,6 @@ func (th *TeamHandler) GetTeam(ctx context.Context, req *pb.GetTeamReq) (*pb.Get
 	}, nil
 }
 
+func(th *TeamHandler)LeaveTeam(c context.Context){
+	
+}

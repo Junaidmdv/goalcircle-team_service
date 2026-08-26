@@ -145,3 +145,12 @@ type GetPresignedUrlRes struct {
 	TeamID       string
 	PresignedUrl string
 }
+
+
+type LeaveTeamReq struct{
+
+} 
+
+type LeaveTeamRes struct{
+	
+}

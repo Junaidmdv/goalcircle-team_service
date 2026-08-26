@@ -5,9 +5,7 @@ import (
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/google/uuid"
-) 
-
-
+)
 
 type AddOwnerReq struct {
 	UserID           string
@@ -27,8 +25,6 @@ type AddOwnerRes struct {
 	Designation  entity.StaffDesignation
 	Role         entity.StaffRole
 }
-
-
 
 type RegisterTeamMemberReq struct {
 	UserID string
@@ -50,4 +46,14 @@ type CompensateRegisterTeamMemberReq struct {
 	InvitationID uuid.UUID
 	TeamMemberID uuid.UUID
 	UserID       uuid.UUID
+}
+
+type LeaveTeamReq struct {
+	TeamID       string
+	UserID       string
+	TeamMemberID string
+}
+
+type LeaveTeamRes struct { 
+	TeamID string 
 }

@@ -167,3 +167,29 @@ func (tm *teamMemberUsecase) AddOwner(ctx context.Context, req *AddOwnerReq) (*A
 func (tm *teamMemberUsecase) DeleteTeamOwner(ctx context.Context, teamMemberID *uuid.UUID) error {
 	return tm.teamMemberRepo.RemoveTeamMember(ctx, teamMemberID)
 }
+
+func (tm *teamMemberUsecase) LeaveTeam(ctx context.Context, req *LeaveTeamReq) (*LeaveTeamRes, error) {
+
+	teamID, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewInvalidArgumentError("invalid team id")
+	}
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid user id")
+	}
+
+	teamMember, err := tm.teamMemberRepo.GetTeamMember(ctx, teamID, userID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if teamMember.Status == entity.TeamMemberStatusRelease && teamMember.ReleasedAt.IsZero() {
+		return nil, apperror.NewBadRequestError("team member can leave the team only after being released")
+	}
+
+	return nil, nil
+
+}

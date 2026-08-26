@@ -18,13 +18,15 @@ type TeamMemberRepository interface {
 	UpdateUserID(ctx context.Context, teamMemberID uuid.UUID, userID uuid.UUID) error
 	GetTeamMemeberRole(context.Context, uuid.UUID, uuid.UUID) (entity.TeamMemberRole, error)
 	GetStaffDesignation(context.Context, uuid.UUID) (entity.StaffDesignation, error)
-	IsTeamMemberExist(context.Context, uuid.UUID, uuid.UUID) (bool, error)
+	IsTeamMemberExist(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) (bool, error)
 	DeleteTeamMember(context.Context, uuid.UUID, uuid.UUID) error
 	GetActiveTeamMemberByUserID(context.Context, uuid.UUID) (*entity.TeamMember, error)
 	GetTeamMemberByID(context.Context, uuid.UUID) (*entity.TeamMember, error)
 	HasUnreleasedMembership(ctx context.Context, userID uuid.UUID) (bool, error)
 	UpdateStatus(ctx context.Context, teamMemberID uuid.UUID, status entity.TeamMemberStatus) error
 	ReleaseMember(ctx context.Context, teamID, memberID uuid.UUID) error
+	GetTeamMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) (*entity.TeamMember, error)
+	UpdateLeftAt(ctx context.Context, teamMemberId uuid.UUID) error
 }
 
 type teamMemberRepository struct {
@@ -52,7 +54,6 @@ func (tm *teamMemberRepository) IsTeamMemberExist(ctx context.Context, teamID uu
 
 	return count > 0, nil
 }
-
 
 func (tm *teamMemberRepository) AddTeamMember(ctx context.Context, input *entity.TeamMember) (*entity.TeamMember, error) {
 	if err := tm.db.WithContext(ctx).Create(input).Error; err != nil {
@@ -238,5 +239,36 @@ func (tr *teamMemberRepository) ReleaseMember(
 		return gorm.ErrRecordNotFound
 	}
 
+	return nil
+}
+
+func (tr *teamMemberRepository) IsTeamMemberReleased(ctx context.Context, teamMemberID uuid.UUID) {
+
+	tr.db.WithContext(ctx).Where("id=? AND status=?", teamMemberID, entity.TeamMemberStatusRelease)
+}
+
+func (tr *teamMemberRepository) GetTeamMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) (*entity.TeamMember, error) {
+
+	var tm entity.TeamMember
+	if err := tr.db.WithContext(ctx).Where("team_id=? AND user_id=?", teamID, userID).Take(&tm).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.NewNotFoundError(" member not found with this user id in the team")
+		}
+		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+	return &tm, nil
+}
+
+func (tr *teamMemberRepository) UpdateLeftAt(ctx context.Context, teamMemberID uuid.UUID) error {
+
+	result := tr.db.WithContext(ctx).Model(&entity.TeamMember{}).Where("id=?", teamMemberID).Update("left_at", time.Now())
+
+	if result.Error == nil {
+		return apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return apperror.NewNotFoundError("failed update team member")
+	}
 	return nil
 }

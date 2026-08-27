@@ -37,7 +37,7 @@ type TeamMember struct {
 	Status     TeamMemberStatus
 	JoinedAt   time.Time
 	ReleasedAt time.Time
-	LeftAt   time.Time
+	LeftAt     time.Time
 	Player     *Player     `gorm:"foreignKey:TeamMemberID"`
 	Staff      *Staff      `gorm:"foreignKey:TeamMemberID"`
 	TeamInvite *TeamInvite `gorm:"foreignKey:TeamMemberID"`

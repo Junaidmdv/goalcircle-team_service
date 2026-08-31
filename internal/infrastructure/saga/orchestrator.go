@@ -3,6 +3,7 @@ package saga
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 )
@@ -26,7 +27,7 @@ func (o *Orchestrator) Execute(ctx context.Context, SagaState interface{}) error
 		o.logger.Info(fmt.Sprintf("[SAGA] executing step: %s", step.Name))
 
 		if err := step.Action(ctx, SagaState); err != nil {
-			o.logger.Error(fmt.Sprintf("[SAGA] step %s failed: %v — starting rollback", step.Name, err))
+			log.Printf("[SAGA] step %s failed: %v — starting rollback", step.Name, err)
 			o.compensate(ctx, SagaState, completed)
 			return err
 		}
@@ -45,8 +46,7 @@ func (o *Orchestrator) compensate(ctx context.Context, SagaState interface{}, co
 		o.logger.Info(fmt.Sprintf("[SAGA] compensating: %s", step.Name))
 
 		if err := step.Compensate(ctx, SagaState); err != nil {
-			o.logger.Error(fmt.Sprintf("[SAGA] compensation failed for %s: %v", step.Name, err))
-			// continue — best-effort, attempt all remaining compensations
+			log.Printf("[SAGA] compensation failed for %s: %v", step.Name, err)
 		}
 	}
 }

@@ -9,15 +9,13 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type TeamRepository interface {
 	CreateTeam(context.Context, *entity.Team) (*entity.Team, error)
 	DeleteTeam(context.Context, uuid.UUID) error
 	GetTeamCode(context.Context, uuid.UUID) (string, error)
-	UpdateTeamDetails(context.Context, uuid.UUID, *UpdateTeamReq) (*entity.Team, error)
-	UpdateTeamContactDetails(context.Context, uuid.UUID, *UpdateTeamContact) (*entity.Team, error)
+	UpdateTeamDetails(ctx context.Context, teamID uuid.UUID, team *entity.Team) error
 	SetCaptain(context.Context, uuid.UUID, uuid.UUID) error
 	SetViceCaptain(context.Context, uuid.UUID, uuid.UUID) error
 	ListTeams(context.Context, *ListTeamsReq) ([]entity.Team, int32, error)
@@ -68,77 +66,18 @@ func (tr *teamRepository) GetTeamCode(ctx context.Context, teamid uuid.UUID) (st
 	return code, nil
 }
 
-func (tr *teamRepository) UpdateTeamDetails(ctx context.Context, teamID uuid.UUID, req *UpdateTeamReq) (*entity.Team, error) {
+func (tr *teamRepository) UpdateTeamDetails(ctx context.Context, teamID uuid.UUID, team *entity.Team) error {
 
-	updates := make(map[string]interface{})
-
-	if req.Name != nil {
-		updates["name"] = *req.Name
-	}
-
-	if req.ShortName != nil {
-		updates["short_name"] = *req.ShortName
-	}
-
-	if req.City != nil {
-		updates["city"] = *req.City
-	}
-
-	if req.Description != nil {
-		updates["description"] = *req.Description
-	}
-
-	if req.Email != nil {
-		updates["email"] = *req.Email
-	}
-
-	if req.PhoneNum != nil {
-		updates["phone_num"] = *req.PhoneNum
-	}
-
-	if len(updates) == 0 {
-		return nil, apperror.NewInvalidArgumentError("no fields to update")
-	}
-
-	var team entity.Team
-	result := tr.db.WithContext(ctx).
-		Model(&team).
-		Clauses(clause.Returning{}).
-		Where("id = ?", teamID).
-		Updates(updates)
+	result := tr.db.WithContext(ctx).Where("id=?", teamID).Updates(team)
 	if result.Error != nil {
-		tr.logger.Error("database error", "error", result.Error)
-		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperror.NewNotFoundError("team not found")
-	}
-	return &team, nil
-}
-
-func (tr *teamRepository) UpdateTeamContactDetails(ctx context.Context, teamID uuid.UUID, req *UpdateTeamContact) (*entity.Team, error) {
-	updates := make(map[string]interface{})
-	if req.ContactEmail != nil {
-		updates["contact_email"] = *req.ContactEmail
+		tr.logger.Error("database error", "error", result.Error, "method", "teamRepo.UpdateTeam")
+		return apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
 	}
 
-	if req.ContactPhoneNum != nil {
-		updates["contact_phone_num"] = *req.ContactPhoneNum
-	}
-	var team entity.Team
-	result := tr.db.WithContext(ctx).
-		Model(&team).
-		Clauses(clause.Returning{}).
-		Where("id = ?", teamID).
-		Updates(updates)
-	if result.Error != nil {
-		tr.logger.Error("database error", "error", result.Error)
-		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
-	}
 	if result.RowsAffected == 0 {
-		return nil, apperror.NewNotFoundError("team not found")
+		return apperror.NewNotFoundError("failed found staff")
 	}
-	return &team, nil
+	return nil
 
 }
 
@@ -178,7 +117,7 @@ func (tm *teamRepository) ListTeams(ctx context.Context, req *ListTeamsReq) ([]e
 	var total int64
 	var teams []entity.Team
 
-	query := tm.db.WithContext(ctx).Scopes(
+	query := tm.db.WithContext(ctx).Model(&entity.Team{}).Scopes(
 		SearchTeam(req.Search),
 		FilterByCity(req.City),
 		FilterByTeamStatus(req.TeamStatus),
@@ -197,7 +136,7 @@ func (tm *teamRepository) ListTeams(ctx context.Context, req *ListTeamsReq) ([]e
 	if err != nil {
 		return nil, -1, apperror.NewInternalError("Something went wrong please try again later", err)
 	}
-	return teams, -1, nil
+	return teams, int32(total), nil
 }
 
 func (tr *teamRepository) IsTeamExist(ctx context.Context, teamID uuid.UUID) (bool, error) {

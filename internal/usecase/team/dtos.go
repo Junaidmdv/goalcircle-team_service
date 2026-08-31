@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type CreateTeamRes struct {
+type TeamDetails struct {
 	TeamID    uuid.UUID `gorm:"primaryKey"`
 	Name      string
 	ShortName string
@@ -15,13 +15,33 @@ type CreateTeamRes struct {
 	Code      string
 }
 
+type TeamMemberDetails struct {
+	TeamMemberID uuid.UUID
+	StaffID      uuid.UUID
+	UserID       uuid.UUID
+	FullName     string
+	Age          int32
+	Role         entity.StaffRole
+	Designation  entity.StaffDesignation
+}
+
+type CreateTeamRes struct {
+	Team  *TeamDetails
+	Owner *TeamMemberDetails
+}
+
 type CreateTeamReq struct {
-	UserID      string
-	Name        string
-	City        string
-	Description string
-	PhoneNum    string
-	Email       string
+	UserID           string
+	TeamName         string
+	City             string
+	Description      string
+	PhoneNum         string
+	Email            string
+	OwnerName        string
+	Role             entity.StaffRole
+	Designation      entity.StaffDesignation
+	DOB              time.Time
+	TeamMemberStatus entity.TeamMemberStatus
 }
 
 type UpdateTeamDetailsReq struct {
@@ -146,11 +166,8 @@ type GetPresignedUrlRes struct {
 	PresignedUrl string
 }
 
+type LeaveTeamReq struct {
+}
 
-type LeaveTeamReq struct{
-
-} 
-
-type LeaveTeamRes struct{
-	
+type LeaveTeamRes struct {
 }

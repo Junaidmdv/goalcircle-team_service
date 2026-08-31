@@ -67,16 +67,16 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 	})
 
 	if err != nil {
-		return nil, apperror.GRPCStatus(err)
+		return nil, err
 	}
 
 	return &pb.CreateTeamRes{
 		TeamDetails: &pb.TeamDetailsRes{
-			Id:        res.TeamRes.ID.String(),
-			Name:      res.TeamRes.Name,
-			ShortName: res.TeamRes.ShortName,
-			City:      res.TeamRes.City,
-			TeamCode:  res.TeamRes.Code,
+			Id:        res.TeamRes.Team.ID.String(),
+			Name:      res.TeamRes.Team.Name,
+			ShortName: res.TeamRes.Team.ShortName,
+			City:      res.TeamRes.Team.City,
+			TeamCode:  res.TeamRes.Team.Code,
 		},
 		User: &pb.UserRes{
 			SessionId:          res.AddUserRes.SessionID,
@@ -88,12 +88,12 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 			RefreshTokenExpiry: timestamppb.New(res.AddUserRes.RefreshTokenExpiry),
 		},
 		TeamOwner: &pb.TeamMemberDetails{
-			StaffId:      res.TeamMemberRes.StaffID.String(),
-			TeamMemberId: res.TeamMemberRes.TeamMemberID.String(),
-			FullName:     res.FullName,
-			Age:          res.TeamMemberRes.Age,
-			Designatin:   string(res.TeamMemberRes.Designation),
-			Role:         string(res.TeamMemberRes.Role),
+			StaffId:      res.TeamRes.Owner.StaffID.String(),
+			TeamMemberId: res.TeamRes.Owner.TeamMemberID.String(),
+			FullName:     res.TeamRes.Owner.FullName,
+			Age:          res.TeamRes.Owner.Age,
+			Designation:  string(res.TeamRes.Owner.Designation),
+			Role:         string(res.TeamRes.Owner.Role),
 		},
 	}, nil
 }
@@ -175,16 +175,17 @@ func (th *TeamHandler) SetViceCaptain(ctx context.Context, req *pb.SetViceCaptai
 
 }
 
-func (th *TeamHandler) ListTeams(ctx context.Context, req *pb.ListTeamReq) (*pb.ListTeamRes, error) {
+func (th *TeamHandler) ListTeam(ctx context.Context, req *pb.ListTeamReq) (*pb.ListTeamRes, error) {
 	context, cancel := context.WithTimeout(ctx, th.timeOut)
 	defer cancel()
 
 	status := protoTeamStatusToEntity[req.TeamStatus]
 
 	res, err := th.teamUsecase.ListTeams(context, &team_uc.ListTeamsReq{
-		Page:   req.Limit,
+		Page:   req.Page,
 		Limit:  req.Limit,
 		Status: status,
+		City:   req.City,
 		Search: req.Search,
 	})
 
@@ -202,7 +203,6 @@ func (th *TeamHandler) ListTeams(ctx context.Context, req *pb.ListTeamReq) (*pb.
 			TeamId:     tms.TeamID.String(),
 			Name:       tms.Name,
 			City:       tms.City,
-			LogoUrl:    tms.LogoUrl,
 			TeamCode:   tms.TeamCode,
 			TeamStatus: tmstatus,
 		})
@@ -315,7 +315,7 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 
 }
 
-func (th *TeamHandler) GetPresignedURL(ctx context.Context, req *pb.GetPresignedUrlReq) (*pb.GetPresignedUrlRes, error) {
+func (th *TeamHandler) GetLogoPresignedUrl(ctx context.Context, req *pb.GetPresignedUrlReq) (*pb.GetPresignedUrlRes, error) {
 
 	res, err := th.teamUsecase.GetPresignedURL(ctx, &team_uc.GetPresignedUrlReq{
 		TeamID: req.TeamId,
@@ -328,9 +328,7 @@ func (th *TeamHandler) GetPresignedURL(ctx context.Context, req *pb.GetPresigned
 		TeamId:       res.TeamID,
 		PresignedUrl: res.PresignedUrl,
 	}, nil
-} 
-
-
+}
 
 func (th *TeamHandler) GetTeam(ctx context.Context, req *pb.GetTeamReq) (*pb.GetTeamRes, error) {
 
@@ -346,17 +344,18 @@ func (th *TeamHandler) GetTeam(ctx context.Context, req *pb.GetTeamReq) (*pb.Get
 		Name:          res.Name,
 		ShortName:     res.ShortName,
 		City:          res.City,
-		LogoKey:       res.LogoKey,
 		TeamCode:      res.TeamCode,
+		Description:   res.Description,
 		Email:         res.Email,
 		PhoneNum:      res.PhoneNum,
 		TeamStatus:    res.TeamStatus,
 		PlayerCount:   res.PlayerCount,
 		CaptionId:     res.CaptainID,
 		ViceCaptionId: res.ViceCaptainID,
+		CreatedAt:     timestamppb.New(res.CreatedAt),
 	}, nil
 }
 
-func(th *TeamHandler)LeaveTeam(c context.Context){
-	
+func (th *TeamHandler) LeaveTeam(c context.Context) {
+
 }

@@ -10,6 +10,7 @@ import (
 	staffuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
 	teammemberuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teammember"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 )
 
@@ -26,26 +27,26 @@ type teamSaga struct {
 
 func NewTeamSagaMaker(teamuc team.TeamUsecase, tmuc teammemberuc.TeamMemberUsecase, usrclient usrclient.AuthServiceClient, stuc staffuc.StaffUsecase, logger logger.Logger) TeamSagaMaker {
 	return &teamSaga{
-		teamUsecase: teamuc,
-		userclient:  usrclient,
-		logger:      logger,
+		teamUsecase:  teamuc,
+		teamMemberUc: tmuc,
+		userclient:   usrclient,
+		logger:       logger,
 	}
 }
 
 type TeamSagaState struct {
-	UserID        string
-	Role          entity.UserRole
-	RefreshToken  string
-	TeamName      string
-	City          string
-	Description   string
-	FullName      string
-	PhoneNum      string
-	Email         string
-	DOB           time.Time
-	AddUserRes    *AddUserRoleRes
-	TeamRes       *CreateTeamRes
-	TeamMemberRes *TeamMemberRes
+	UserID       string
+	Role         entity.UserRole
+	RefreshToken string
+	TeamName     string
+	City         string
+	Description  string
+	FullName     string
+	PhoneNum     string
+	Email        string
+	DOB          time.Time
+	AddUserRes   *AddUserRoleRes
+	TeamRes      *CreateTeamRes
 }
 
 func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*TeamSagaState, error) {
@@ -59,49 +60,13 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 				req := sagaState.(*TeamSagaState)
 
 				res, err := ts.teamUsecase.CreateTeam(ctx, &team.CreateTeamReq{
-					UserID:      req.UserID,
-					Name:        req.TeamName,
-					City:        req.City,
-					Description: req.Description,
-					PhoneNum:    req.PhoneNum,
-					Email:       req.Email,
-				})
-
-				if err != nil {
-					return err
-				}
-
-				req.TeamRes = &CreateTeamRes{
-					ID:        res.TeamID,
-					Name:      res.Name,
-					ShortName: res.ShortName,
-					City:      res.City,
-					Code:      res.Code,
-				}
-
-				return nil
-			},
-			Compensate: func(ctx context.Context, req interface{}) error {
-				request := req.(*TeamSagaState)
-
-				err := ts.teamUsecase.DeleteTeam(ctx, request.TeamRes.ID)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			},
-		},
-		{
-			Name: "add team owner",
-			Action: func(ctx context.Context, sagaState interface{}) error {
-
-				req, _ := sagaState.(*TeamSagaState)
-
-				res, err := ts.teamMemberUc.AddOwner(ctx, &teammemberuc.AddOwnerReq{
 					UserID:           req.UserID,
-					TeamID:           req.TeamRes.ID.String(),
-					FullName:         req.FullName,
+					TeamName:         req.TeamName,
+					City:             req.City,
+					Description:      req.Description,
+					PhoneNum:         req.PhoneNum,
+					Email:            req.Email,
+					OwnerName:        req.FullName,
 					Role:             entity.StaffRoleManagement,
 					Designation:      entity.StaffDesignationOwner,
 					DOB:              req.DOB,
@@ -109,26 +74,38 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 				})
 
 				if err != nil {
-					return err
+					return apperror.GRPCStatus(err)
 				}
 
-				req.TeamMemberRes = &TeamMemberRes{
-					StaffID:      res.StaffID,
-					TeamMemberID: res.TeamMemberID,
-					FullName:     res.FullName,
-					Age:          res.Age,
-					Designation:  res.Designation,
-					Role:         res.Role,
+				req.TeamRes = &CreateTeamRes{
+					Team: &TeamDetails{
+						ID:        res.Team.TeamID,
+						Name:      res.Team.Name,
+						ShortName: res.Team.ShortName,
+						City:      res.Team.City,
+						Code:      res.Team.Code,
+					},
+					Owner: &OwnerDetails{
+						StaffID:      res.Owner.StaffID,
+						TeamMemberID: res.Owner.TeamMemberID,
+						TeamID:       res.Team.TeamID,
+						UserID:       res.Owner.UserID.String(),
+						FullName:     res.Owner.FullName,
+						Age:          res.Owner.Age,
+						Role:         res.Owner.Role,
+						Designation:  res.Owner.Designation,
+					},
 				}
 
 				return nil
 			},
-			Compensate: func(ctx context.Context, sagaState interface{}) error {
-				// req, _ := sagaState.(*TeamSagaState)
+			Compensate: func(ctx context.Context, req interface{}) error {
+				request := req.(*TeamSagaState)
 
-				// if err := ts.teamMemberUc.DeleteTeamOwner(ctx, &req.TeamMemberRes.TeamMemberID); err != nil {
-				// 	return err
-				// }
+				err := ts.teamUsecase.DeleteTeam(ctx, request.TeamRes.Team.ID, request.TeamRes.Owner.StaffID)
+				if err != nil {
+					return apperror.GRPCStatus(err)
+				}
 
 				return nil
 			},

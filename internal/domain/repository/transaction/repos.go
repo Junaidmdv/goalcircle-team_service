@@ -18,13 +18,6 @@ type repositories struct {
 	teamMemberRepo teammemberrepo.TeamMemberRepository
 }
 
-func NewRepositories(tmRepo teamrepo.TeamRepository, staffrepo staffrepo.StaffRepository, tmMemberRepo teammemberrepo.TeamMemberRepository) Repositories {
-	return &repositories{
-		teamRepo:       tmRepo,
-		staffRepo:      staffrepo,
-		teamMemberRepo: tmMemberRepo,
-	}
-}
 
 func (r *repositories) Team() teamrepo.TeamRepository {
 	return r.teamRepo

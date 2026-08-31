@@ -36,10 +36,7 @@ func (u *unitOfWork) Execute(ctx context.Context, fn func(Repositories) error) e
 			teamMemberRepo: teammemberrepo.NewTeamMemberRepository(db, u.logger),
 		}
 
-		if err := fn(repos); err != nil {
-			return err
-		}
-		return nil
+		return fn(repos)
 	})
 
 }

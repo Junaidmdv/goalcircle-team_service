@@ -17,7 +17,7 @@ type AddUserRoleRes struct {
 	RefreshTokenExpiry time.Time
 }
 
-type CreateTeamRes struct {
+type TeamDetails struct {
 	ID        uuid.UUID
 	Name      string
 	ShortName string
@@ -25,7 +25,7 @@ type CreateTeamRes struct {
 	Code      string
 }
 
-type TeamMemberRes struct {
+type OwnerDetails struct {
 	StaffID      uuid.UUID
 	TeamMemberID uuid.UUID
 	TeamID       uuid.UUID
@@ -34,4 +34,12 @@ type TeamMemberRes struct {
 	Age          int32
 	Role         entity.StaffRole
 	Designation  entity.StaffDesignation
+}
+
+type CreateTeamRes struct {
+	Team  *TeamDetails
+	Owner *OwnerDetails
+}
+
+type TeamMemberRes struct {
 }

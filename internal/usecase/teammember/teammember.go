@@ -19,7 +19,7 @@ type TeamMemberUsecase interface {
 	AddOwner(ctx context.Context, req *AddOwnerReq) (*AddOwnerRes, error)
 	RegisterTeamMember(context.Context, *RegisterTeamMemberReq) (*RegisterTeamMemberRes, error)
 	CompensateRegisterTeamMember(context.Context, *CompensateRegisterTeamMemberReq) error
-	DeleteTeamOwner(ctx context.Context, teamMemberID *uuid.UUID) error
+	DeleteTeamOwner(ctx context.Context, teamMemberID uuid.UUID, staffID uuid.UUID) error
 }
 
 type teamMemberUsecase struct {
@@ -30,11 +30,13 @@ type teamMemberUsecase struct {
 	dateCalc       datetime.DateCalculator
 }
 
-func NewTeamMemberUsecase(tmr teammember.TeamMemberRepository, ti teaminvite.TeamInviteRepository, staffRepo staffrepo.StaffRepository, logger logger.Logger) TeamMemberUsecase {
+func NewTeamMemberUsecase(tmr teammember.TeamMemberRepository, ti teaminvite.TeamInviteRepository, staffRepo staffrepo.StaffRepository, logger logger.Logger, datecal datetime.DateCalculator) TeamMemberUsecase {
 	return &teamMemberUsecase{
 		teamMemberRepo: tmr,
 		teamInviteRepo: ti,
 		logger:         logger,
+		StaffRepo:      staffRepo,
+		dateCalc:       datecal,
 	}
 }
 
@@ -103,7 +105,6 @@ func (tm *teamMemberUsecase) RegisterTeamMember(ctx context.Context, req *Regist
 		TeamMemberID: member.ID,
 		TeamID:       member.TeamID,
 		UserID:       userID,
-		Role:         string(member.Role),
 		Status:       string(member.Status),
 		JoinedAt:     member.JoinedAt,
 	}, nil
@@ -132,7 +133,6 @@ func (tm *teamMemberUsecase) AddOwner(ctx context.Context, req *AddOwnerReq) (*A
 	teamMember, err := tm.teamMemberRepo.AddTeamMember(ctx, &entity.TeamMember{
 		ID:     uuid.New(),
 		TeamID: teamID,
-		Role:   entity.TeamMemberRoleStaff,
 		Status: req.TeamMemberStatus,
 	})
 
@@ -144,7 +144,6 @@ func (tm *teamMemberUsecase) AddOwner(ctx context.Context, req *AddOwnerReq) (*A
 		ID:           uuid.New(),
 		TeamMemberID: teamMember.ID,
 		FullName:     req.FullName,
-		DateOfBirth:  req.DOB,
 		Role:         req.Role,
 		Designation:  req.Designation,
 	})
@@ -164,8 +163,18 @@ func (tm *teamMemberUsecase) AddOwner(ctx context.Context, req *AddOwnerReq) (*A
 	}, nil
 }
 
-func (tm *teamMemberUsecase) DeleteTeamOwner(ctx context.Context, teamMemberID *uuid.UUID) error {
-	return tm.teamMemberRepo.RemoveTeamMember(ctx, teamMemberID)
+func (tm *teamMemberUsecase) DeleteTeamOwner(ctx context.Context, teamMemberID uuid.UUID, staffID uuid.UUID) error {
+	err := tm.teamMemberRepo.RemoveTeamMember(ctx, teamMemberID)
+	if err != nil {
+		return err
+	}
+
+	err = tm.StaffRepo.DeleteStaff(ctx, staffID)
+	if err != nil {
+		return err
+	}
+	return err
+
 }
 
 func (tm *teamMemberUsecase) LeaveTeam(ctx context.Context, req *LeaveTeamReq) (*LeaveTeamRes, error) {

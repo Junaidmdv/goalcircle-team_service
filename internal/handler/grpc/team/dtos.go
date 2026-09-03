@@ -15,11 +15,11 @@ type CreateTeamReq struct {
 }
 
 type UpdateTeamDetailsReq struct {
-	UserID      string `json:"team_member_id" validate:"required"`
-	Name        string `json:"name"           validate:"omitempty,team-name"`
-	City        string `json:"city"           validate:"omitempty,min=3,max=50"`
-	Description string `json:"description"    validate:"omitempty,max=255"`
-	ShortName   string `json:"short_name"     validate:"omitempty,min=3,max=50"`
-	Email       string `json:"email"          validate:"omitempty,email"`
-	PhoneNum    string `json:"phone_num"      validate:"omitempty,phone"`
+	UserID      string  `json:"team_member_id" validate:"required"`
+	Name        *string `json:"name"           validate:"omitempty,team-name"`
+	City        *string `json:"city"           validate:"omitempty,min=3,max=50"`
+	Description *string `json:"description"    validate:"omitempty,max=255"`
+	ShortName   *string `json:"short_name"     validate:"omitempty,min=3,max=50"`
+	Email       *string `json:"email"          validate:"omitempty,email"`
+	PhoneNum    *string `json:"phone_num"      validate:"omitempty,phone"`
 }

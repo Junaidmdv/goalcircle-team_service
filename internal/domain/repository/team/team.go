@@ -23,6 +23,7 @@ type TeamRepository interface {
 	UpdateLogoKey(context.Context, uuid.UUID, string) error
 	IsJerseyNumOccupied(context.Context, uuid.UUID, int32) (bool, error)
 	GetTeamDetails(context.Context, uuid.UUID) (*entity.Team, error)
+	ClearTeamLogo(ctx context.Context, teamID uuid.UUID) error
 }
 
 type teamRepository struct {
@@ -222,4 +223,26 @@ func (tr *teamRepository) GetTeamDetails(ctx context.Context, teamID uuid.UUID) 
 		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
 	}
 	return &team, nil
+}
+func (tr *teamRepository) ClearTeamLogo(ctx context.Context, teamID uuid.UUID) error {
+
+	result := tr.db.WithContext(ctx).
+		Model(&entity.Team{}).
+		Where("id = ?", teamID).
+		Update("logo_key", nil)
+
+	if result.Error != nil {
+		tr.logger.Error(
+			"database error",
+			"method", "ClearTeamLogo",
+			"error", result.Error,
+		)
+
+		return apperror.NewInternalError(
+			apperror.InternalErrorMsg,
+			result.Error,
+		)
+	}
+
+	return nil
 }

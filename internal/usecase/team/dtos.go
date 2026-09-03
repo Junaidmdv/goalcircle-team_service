@@ -20,7 +20,6 @@ type TeamMemberDetails struct {
 	StaffID      uuid.UUID
 	UserID       uuid.UUID
 	FullName     string
-	Age          int32
 	Role         entity.StaffRole
 	Designation  entity.StaffDesignation
 }
@@ -40,11 +39,11 @@ type CreateTeamReq struct {
 	OwnerName        string
 	Role             entity.StaffRole
 	Designation      entity.StaffDesignation
-	DOB              time.Time
 	TeamMemberStatus entity.TeamMemberStatus
 }
 
 type UpdateTeamDetailsReq struct {
+	TeamID      string
 	UserID      string
 	Name        *string
 	City        *string
@@ -146,6 +145,7 @@ type GetTeamRes struct {
 }
 
 type UploadLogoReq struct {
+	TeamID      string
 	UserID      string
 	LogoData    []byte
 	ContentType string
@@ -170,4 +170,13 @@ type LeaveTeamReq struct {
 }
 
 type LeaveTeamRes struct {
+}
+
+type RemoveLogoReq struct {
+	TeamID string
+	UserID string
+}
+
+type RemoveLogoRes struct {
+	TeamId string 
 }

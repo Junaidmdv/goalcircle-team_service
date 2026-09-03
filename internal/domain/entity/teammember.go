@@ -14,13 +14,6 @@ const (
 	TEAM        UserRole = "team"
 )
 
-type TeamMemberRole string
-
-const (
-	TeamMemberRoleStaff  TeamMemberRole = "STAFF"
-	TeamMemberRolePlayer TeamMemberRole = "PLAYER"
-)
-
 type TeamMemberStatus string
 
 const (
@@ -29,16 +22,24 @@ const (
 	TeamMemberStatusRelease  TeamMemberStatus = "RELEASED"
 )
 
+type TeamMemberRole string
+
+const (
+	TeamMemberStaff  TeamMemberRole = "STAFF"
+	TeamMemberPlayer TeamMemberRole = "PLAYER"
+)
+
 type TeamMember struct {
 	ID         uuid.UUID `gorm:"primaryKey"`
 	TeamID     uuid.UUID
-	UserID     string
-	Role       TeamMemberRole
+	UserID     uuid.UUID
 	Status     TeamMemberStatus
 	JoinedAt   time.Time
 	ReleasedAt time.Time
-	LeftAt   time.Time
+	LeftAt     time.Time
+	Role       TeamMemberRole
 	Player     *Player     `gorm:"foreignKey:TeamMemberID"`
 	Staff      *Staff      `gorm:"foreignKey:TeamMemberID"`
 	TeamInvite *TeamInvite `gorm:"foreignKey:TeamMemberID"`
+	Team       Team        `gorm:"foreignKey:TeamID;references:ID;"`
 }

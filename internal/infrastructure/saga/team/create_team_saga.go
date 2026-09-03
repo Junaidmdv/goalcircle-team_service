@@ -69,7 +69,6 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 					OwnerName:        req.FullName,
 					Role:             entity.StaffRoleManagement,
 					Designation:      entity.StaffDesignationOwner,
-					DOB:              req.DOB,
 					TeamMemberStatus: entity.TeamMemberStatusActive,
 				})
 
@@ -91,7 +90,6 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 						TeamID:       res.Team.TeamID,
 						UserID:       res.Owner.UserID.String(),
 						FullName:     res.Owner.FullName,
-						Age:          res.Owner.Age,
 						Role:         res.Owner.Role,
 						Designation:  res.Owner.Designation,
 					},

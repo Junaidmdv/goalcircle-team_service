@@ -32,6 +32,7 @@ type TeamUsecase interface {
 	ChangeViceCaptain(context.Context, *ChangeViceCaptainReq) (*ChangeViceCaptainRes, error)
 	UploadLogo(context.Context, *UploadLogoReq) (*UploadLogoRes, error)
 	GetPresignedURL(context.Context, *GetPresignedUrlReq) (*GetPresignedUrlRes, error)
+	DeleteLogo(ctx context.Context, req *RemoveLogoReq) (*RemoveLogoRes, error)
 	GetTeam(context.Context, *GetTeamReq) (*GetTeamRes, error)
 }
 
@@ -121,6 +122,7 @@ func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*Crea
 			UserID:   userId,
 			Status:   dt.TeamMemberStatus,
 			JoinedAt: time.Now(),
+			Role:     entity.TeamMemberStaff,
 		})
 		if err != nil {
 			return err
@@ -130,7 +132,6 @@ func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*Crea
 			ID:           uuid.New(),
 			TeamMemberID: teamMemberRes.ID,
 			FullName:     dt.OwnerName,
-			DateOfBirth:  dt.DOB,
 			Role:         dt.Role,
 			Designation:  dt.Designation,
 		})
@@ -149,7 +150,6 @@ func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*Crea
 		return nil, err
 	}
 
-	age := tu.datecal.CalculateAge(dt.DOB)
 
 	return &CreateTeamRes{
 		Team: &TeamDetails{
@@ -163,7 +163,6 @@ func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*Crea
 			TeamMemberID: teamMember.ID,
 			StaffID:      staff.ID,
 			FullName:     staff.FullName,
-			Age:          age,
 			Role:         staff.Role,
 			Designation:  staff.Designation,
 		},
@@ -187,14 +186,17 @@ func (tu *teamUsecase) DeleteTeam(ctx context.Context, teamId uuid.UUID, staffID
 
 func (tu *teamUsecase) UpdateTeamDetails(ctx context.Context, req *UpdateTeamDetailsReq) (*UpdateTeamDetailsRes, error) {
 
+	teamID, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid team id")
 	}
 
-
-
-	teamOwnerRole, err := tu.staffRepo.GetStaffDesignation(ctx, userID)
+	teamOwnerRole, err := tu.staffRepo.GetStaffDesignation(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -249,10 +251,14 @@ func (tu *teamUsecase) ChangeCaptain(ctx context.Context, req *ChangeCaptainReq)
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid team id")
-	} 
+	}
 
+	teamId, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewFailedPreCondition("invalid team id")
+	}
 
-	teamOwnerRole, err := tu.staffRepo.GetStaffDesignation(ctx, userID)
+	teamOwnerRole, err := tu.staffRepo.GetStaffDesignation(ctx, teamId, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -260,11 +266,6 @@ func (tu *teamUsecase) ChangeCaptain(ctx context.Context, req *ChangeCaptainReq)
 	permite := permission.HasPermission(teamOwnerRole, permission.PermissionAddStaff)
 	if !permite {
 		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
-	}
-
-	teamId, err := uuid.Parse(req.TeamID)
-	if err != nil {
-		return nil, apperror.NewFailedPreCondition("invalid team id")
 	}
 
 	playerId, err := uuid.Parse(req.PlayerID)
@@ -296,7 +297,11 @@ func (tu *teamUsecase) ChangeViceCaptain(ctx context.Context, req *ChangeViceCap
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid team id")
 	}
-	teamOwnerRole, err := tu.staffRepo.GetStaffDesignation(ctx, userID)
+	teamId, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewFailedPreCondition("invalid team id")
+	}
+	teamOwnerRole, err := tu.staffRepo.GetStaffDesignation(ctx, teamId, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -304,11 +309,6 @@ func (tu *teamUsecase) ChangeViceCaptain(ctx context.Context, req *ChangeViceCap
 	permite := permission.HasPermission(teamOwnerRole, permission.PermissionAddStaff)
 	if !permite {
 		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
-	}
-
-	teamId, err := uuid.Parse(req.TeamID)
-	if err != nil {
-		return nil, apperror.NewFailedPreCondition("invalid team id")
 	}
 
 	playerId, err := uuid.Parse(req.PlayerID)
@@ -362,7 +362,7 @@ func (tu *teamUsecase) ListTeams(ctx context.Context, input *ListTeamsReq) (*Lis
 			TeamID:     team.ID,
 			Name:       team.Name,
 			City:       team.City,
-			LogoUrl:    team.LogoKey,
+			LogoUrl:    *team.LogoKey,
 			TeamCode:   team.TeamCode,
 			TeamStatus: team.TeamStatus,
 		})
@@ -417,15 +417,23 @@ func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*Upl
 
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		return nil, apperror.NewInvalidArgumentError("invalid team id")
+		return nil, apperror.NewBadRequestError("invalid team id")
 	}
-
-	teamMember, err := tu.teamMemberRepo.GetActiveTeamMemberByUserID(ctx, userID)
+	teamId, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewFailedPreCondition("invalid team id")
+	}
+	teamOwnerRole, err := tu.staffRepo.GetStaffDesignation(ctx, teamId, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	team, err := tu.teamRepo.GetTeamDetails(ctx, teamMember.TeamID)
+	permite := permission.HasPermission(teamOwnerRole, permission.PermissionAddStaff)
+	if !permite {
+		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
+	}
+
+	team, err := tu.teamRepo.GetTeamDetails(ctx, teamId)
 	if err != nil {
 		return nil, err
 	}
@@ -471,11 +479,11 @@ func (tu *teamUsecase) GetPresignedURL(ctx context.Context, input *GetPresignedU
 		return nil, err
 	}
 
-	if team.LogoKey == "" {
+	if team.LogoKey == nil {
 		return nil, apperror.NewBadRequestError("logo is not updated")
 	}
 
-	presignedUrl, err := tu.objectStore.GetPresignedURL(ctx, tu.objectStoreConfig.Bucket, team.LogoKey, tu.objectStoreConfig.PresignedURLExpiry)
+	presignedUrl, err := tu.objectStore.GetPresignedURL(ctx, tu.objectStoreConfig.Bucket, *team.LogoKey, tu.objectStoreConfig.PresignedURLExpiry)
 	if err != nil {
 		return nil, err
 	}
@@ -484,6 +492,48 @@ func (tu *teamUsecase) GetPresignedURL(ctx context.Context, input *GetPresignedU
 		TeamID:       team.ID.String(),
 		PresignedUrl: presignedUrl,
 	}, nil
+}
+
+func (tu *teamUsecase) DeleteLogo(ctx context.Context, req *RemoveLogoReq) (*RemoveLogoRes, error) {
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+	teamId, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewFailedPreCondition("invalid team id")
+	}
+	teamOwnerRole, err := tu.staffRepo.GetStaffDesignation(ctx, teamId, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	permite := permission.HasPermission(teamOwnerRole, permission.PermissionAddStaff)
+	if !permite {
+		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
+	}
+
+	team, err := tu.teamRepo.GetTeamDetails(ctx, teamId)
+	if err != nil {
+		return nil, err
+	}
+
+	if team.LogoKey == nil {
+		return nil, apperror.NewBadRequestError("logo alreay deleted or not set")
+	}
+
+	if err := tu.objectStore.Delete(ctx, tu.objectStoreConfig.Bucket, *team.LogoKey); err != nil {
+		return nil, err
+	}
+
+	if err := tu.teamRepo.ClearTeamLogo(ctx, teamId); err != nil {
+		return nil, err
+	}
+
+	return &RemoveLogoRes{
+		TeamId: team.ID.String(),
+	}, nil
+
 }
 
 func (th *teamUsecase) LeaveTeam(ctx context.Context, input *LeaveTeamReq) (*LeaveTeamRes, error) {

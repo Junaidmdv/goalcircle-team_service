@@ -63,7 +63,6 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 		FullName:     req.OwnerName,
 		PhoneNum:     req.ContactNum,
 		Email:        req.Email,
-		DOB:          req.Dob.AsTime(),
 	})
 
 	if err != nil {
@@ -91,7 +90,6 @@ func (th *TeamHandler) CreateTeam(ctx context.Context, req *pb.CreateTeamReq) (*
 			StaffId:      res.TeamRes.Owner.StaffID.String(),
 			TeamMemberId: res.TeamRes.Owner.TeamMemberID.String(),
 			FullName:     res.TeamRes.Owner.FullName,
-			Age:          res.TeamRes.Owner.Age,
 			Designation:  string(res.TeamRes.Owner.Designation),
 			Role:         string(res.TeamRes.Owner.Role),
 		},
@@ -113,6 +111,7 @@ func (th *TeamHandler) UpdateTeam(ctx context.Context, req *pb.UpdateTeamReq) (*
 	}
 
 	res, err := th.teamUsecase.UpdateTeamDetails(context, &team_uc.UpdateTeamDetailsReq{
+		TeamID:      req.TeamId,
 		UserID:      req.UserId,
 		Name:        req.Name,
 		City:        req.City,
@@ -300,6 +299,7 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 
 	res, err := th.teamUsecase.UploadLogo(ctx, &team_uc.UploadLogoReq{
 		UserID:   meta.UserId,
+		TeamID:   meta.TeamId,
 		LogoData: buffer.Bytes(),
 		Size:     imagesize,
 	})
@@ -313,6 +313,21 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 		ResignedUrl: res.PresignedUrl,
 	})
 
+}
+
+func (th *TeamHandler) RemoveLogo(ctx context.Context, req *pb.RemoveLgoReq) (*pb.RemoveLogoRes, error) {
+
+	res, err := th.teamUsecase.DeleteLogo(ctx, &team_uc.RemoveLogoReq{
+		UserID: req.UserId,
+		TeamID: req.TeamId,
+	})
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
+
+	return &pb.RemoveLogoRes{
+		TeamId: res.TeamId,
+	}, nil
 }
 
 func (th *TeamHandler) GetLogoPresignedUrl(ctx context.Context, req *pb.GetPresignedUrlReq) (*pb.GetPresignedUrlRes, error) {
@@ -354,8 +369,4 @@ func (th *TeamHandler) GetTeam(ctx context.Context, req *pb.GetTeamReq) (*pb.Get
 		ViceCaptionId: res.ViceCaptainID,
 		CreatedAt:     timestamppb.New(res.CreatedAt),
 	}, nil
-}
-
-func (th *TeamHandler) LeaveTeam(c context.Context) {
-
 }

@@ -250,15 +250,14 @@ func (th *TeamHandler) RegisterTeamMember(c context.Context, req *pb.RegisterTea
 func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, pb.AddLogoRes]) error {
 
 	ctx := stream.Context()
+	context, cancel := context.WithTimeout(ctx, th.timeOut)
+	defer cancel()
 
 	var (
 		meta      *pb.TeamLogoMetaData
 		buffer    bytes.Buffer
 		imagesize int64
 	)
-
-	ctx, cancel := context.WithTimeout(ctx, th.timeOut)
-	defer cancel()
 
 	for {
 		req, err := stream.Recv()
@@ -297,7 +296,7 @@ func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, 
 		return apperror.GRPCStatus(err)
 	}
 
-	res, err := th.teamUsecase.UploadLogo(ctx, &team_uc.UploadLogoReq{
+	res, err := th.teamUsecase.UploadLogo(context, &team_uc.UploadLogoReq{
 		UserID:   meta.UserId,
 		TeamID:   meta.TeamId,
 		LogoData: buffer.Bytes(),

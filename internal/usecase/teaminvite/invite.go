@@ -6,6 +6,7 @@ import (
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/permission"
+	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
 	tminviterepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
@@ -21,24 +22,33 @@ type teamInviteUsecase struct {
 	teamInviteRepo tminviterepo.TeamInviteRepository
 	CodeGenerater  code.CodeGenerater
 	teamMemberRepo teammember.TeamMemberRepository
+	staffrepo      staffrepo.StaffRepository
 }
 
-func NewTeamInviteUsecase(tm tminviterepo.TeamInviteRepository, code code.CodeGenerater, teamMemberRepo teammember.TeamMemberRepository) TeamInviteUsecase {
+func NewTeamInviteUsecase(tm tminviterepo.TeamInviteRepository, code code.CodeGenerater, teamMemberRepo teammember.TeamMemberRepository, staffrepo staffrepo.StaffRepository) TeamInviteUsecase {
 	return &teamInviteUsecase{
 		teamInviteRepo: tm,
 		CodeGenerater:  code,
 		teamMemberRepo: teamMemberRepo,
+		staffrepo:      staffrepo,
 	}
 }
 
 func (ti *teamInviteUsecase) CreateInvitation(ctx context.Context, req *TeamInviteReq) (*TeamInviteRes, error) {
+
+	//left to add team id  add it later
+
+	teamID, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
 
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid user id")
 	}
 
-	teamOwnerRole, err := ti.teamMemberRepo.GetStaffDesignation(ctx, userID)
+	teamOwnerRole, err := ti.staffrepo.GetStaffDesignation(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +63,6 @@ func (ti *teamInviteUsecase) CreateInvitation(ctx context.Context, req *TeamInvi
 		return nil, apperror.NewBadRequestError("invalid user id")
 	}
 
-
 	teamMember, err := ti.teamMemberRepo.GetTeamMemberByID(ctx, teamMemberID)
 	if err != nil {
 		return nil, err
@@ -65,7 +74,7 @@ func (ti *teamInviteUsecase) CreateInvitation(ctx context.Context, req *TeamInvi
 	}
 
 	if !exist || invite.IsUsed || time.Now().After(invite.ExpiresAt) {
-		code, err := ti.CodeGenerater.GenerateCode(string(teamMember.Role))
+		code, err := ti.CodeGenerater.GenerateCode("TEAM")
 		if err != nil {
 			return nil, err
 		}
@@ -74,7 +83,6 @@ func (ti *teamInviteUsecase) CreateInvitation(ctx context.Context, req *TeamInvi
 			ID:           uuid.New(),
 			TeamMemberID: teamMember.ID,
 			Code:         code,
-			Role:         string(teamMember.Role),
 			IsUsed:       false,
 			ExpiresAt:    time.Now().Add(entity.CodeExpiryDays * 24 * time.Hour),
 			CreatedAt:    time.Now(),

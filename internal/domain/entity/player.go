@@ -55,5 +55,4 @@ type Player struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	TeamMember   TeamMember  `gorm:"foreignKey:TeamMemberID;references:ID"`
-	PlayerStats  PlayerStats `gorm:"foreignKey:PlayerID"`
 }

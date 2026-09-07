@@ -10,6 +10,7 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/permission"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/player"
+	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
 	teamRepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
@@ -35,6 +36,7 @@ type playerUsecase struct {
 	playerRepository    player.PlayerRepository
 	teamMemberRepo      teammember.TeamMemberRepository
 	teamRepository      teamRepo.TeamRepository
+	staffRepo           staffrepo.StaffRepository
 	code                code.CodeGenerater
 	logger              logger.Logger
 	ObjectStorage       storage.ObjectStorage
@@ -44,6 +46,7 @@ type playerUsecase struct {
 func NewPlayerUsecase(player player.PlayerRepository,
 	tmRepo teammember.TeamMemberRepository,
 	teamRepo teamRepo.TeamRepository,
+	staffRepo staffrepo.StaffRepository,
 	logger logger.Logger,
 	objectStorage storage.ObjectStorage,
 	objectStorageconfig *config.ObjectStorageConfig,
@@ -53,6 +56,7 @@ func NewPlayerUsecase(player player.PlayerRepository,
 		playerRepository:    player,
 		teamMemberRepo:      tmRepo,
 		teamRepository:      teamRepo,
+		staffRepo:           staffRepo,
 		code:                code,
 		ObjectStorage:       objectStorage,
 		ObjectStorageConfig: objectStorageconfig,
@@ -67,7 +71,11 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 		return nil, apperror.NewBadRequestError("invalid team id")
 	}
 
-	teamOwnerRole, err := pu.teamMemberRepo.GetStaffDesignation(ctx, userID)
+	teamID, err := uuid.Parse(input.TeamID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+	teamOwnerRole, err := pu.staffRepo.GetStaffDesignation(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -75,10 +83,6 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 	permite := permission.HasPermission(teamOwnerRole, permission.PermissionAddStaff)
 	if !permite {
 		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
-	}
-	teamID, err := uuid.Parse(input.TeamID)
-	if err != nil {
-		return nil, apperror.NewBadRequestError("invalid team id")
 	}
 
 	jerseyNumTaken, err := pu.teamRepository.IsJerseyNumOccupied(ctx, teamID, input.JerseyNumber)
@@ -92,7 +96,6 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 	teamMember, err := pu.teamMemberRepo.AddTeamMember(ctx, &entity.TeamMember{
 		ID:     uuid.New(),
 		TeamID: teamID,
-		Role:   entity.TeamMemberRolePlayer,
 		Status: entity.TeamMemberStatusInactive,
 	})
 
@@ -153,7 +156,11 @@ func (pu *playerUsecase) UpdatePlayerDetails(ctx context.Context, input *UpdateP
 		pu.logger.Error("invalid team id", "error", errors.New("invalid user id from token"))
 		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
 	}
-	teamOwnerRole, err := pu.teamMemberRepo.GetStaffDesignation(ctx, userID)
+	teamID, err := uuid.Parse(input.TeamID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+	teamOwnerRole, err := pu.staffRepo.GetStaffDesignation(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -166,11 +173,6 @@ func (pu *playerUsecase) UpdatePlayerDetails(ctx context.Context, input *UpdateP
 
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid player id")
-	}
-
-	teamID, err := uuid.Parse(input.TeamID)
-	if err != nil {
-		return nil, apperror.NewBadRequestError("invalid team id")
 	}
 
 	if input.JerseyNumber == nil {
@@ -320,8 +322,12 @@ func (pu *playerUsecase) ReleasePlayer(ctx context.Context, input *ReleasePlayer
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid team id")
 	}
+	teamID, err := uuid.Parse(input.TeamID)
+	if err != nil {
+		return nil, apperror.NewInvalidArgumentError("invalid team id")
+	}
 
-	teamOwnerRole, err := pu.teamMemberRepo.GetStaffDesignation(ctx, userID)
+	teamOwnerRole, err := pu.staffRepo.GetStaffDesignation(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -329,10 +335,6 @@ func (pu *playerUsecase) ReleasePlayer(ctx context.Context, input *ReleasePlayer
 	permite := permission.HasPermission(teamOwnerRole, permission.PermissionAddStaff)
 	if !permite {
 		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
-	}
-	teamID, err := uuid.Parse(input.TeamID)
-	if err != nil {
-		return nil, apperror.NewInvalidArgumentError("invalid team id")
 	}
 
 	playerID, err := uuid.Parse(input.PlayerID)
@@ -369,7 +371,13 @@ func (pu *playerUsecase) UpdateImage(ctx context.Context, input *UpdatePlayerIma
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid user id")
 	}
-	teamOwnerRole, err := pu.teamMemberRepo.GetStaffDesignation(ctx, userID)
+
+	teamID, err := uuid.Parse(input.TeamID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+
+	teamOwnerRole, err := pu.staffRepo.GetStaffDesignation(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -377,11 +385,6 @@ func (pu *playerUsecase) UpdateImage(ctx context.Context, input *UpdatePlayerIma
 	permite := permission.HasPermission(teamOwnerRole, permission.PermissionAddStaff)
 	if !permite {
 		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
-	}
-
-	teamID, err := uuid.Parse(input.TeamID)
-	if err != nil {
-		return nil, apperror.NewBadRequestError("invalid team id")
 	}
 
 	playerID, err := uuid.Parse(input.PlayerID)
@@ -459,7 +462,12 @@ func (pu *playerUsecase) RemovePlayerImage(ctx context.Context, req *RemovePlaye
 		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
 	}
 
-	staffAuthRole, err := pu.teamMemberRepo.GetStaffDesignation(ctx, userID)
+	teamID, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+
+	staffAuthRole, err := pu.staffRepo.GetStaffDesignation(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}

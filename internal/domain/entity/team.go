@@ -20,7 +20,7 @@ type Team struct {
 	Name          string
 	ShortName     string
 	City          string
-	LogoKey       string
+	LogoKey       *string
 	TeamCode      string
 	Description   string
 	Email         string
@@ -30,6 +30,5 @@ type Team struct {
 	CaptainID     uuid.UUID
 	ViceCaptainID uuid.UUID
 	CreatedAt     time.Time
-	TeamMember    []TeamMember `gorm:"foreignKey:TeamID"`
-	TeamStats     TeamStats    `gorm:"foreignKey:TeamID"`
+	TeamMember    []TeamMember `gorm:"foreignKey:TeamID;constraint:OnDelete:CASCADE"`
 }

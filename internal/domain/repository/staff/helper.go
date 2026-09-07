@@ -41,7 +41,7 @@ func filterByRole(role entity.StaffRole) func(*gorm.DB) *gorm.DB {
 		if role == entity.StaffRoleUnspecified {
 			return db
 		}
-		return db.Where("players.position=?", role)
+		return db.Where("staffs.role=?", role)
 	}
 }
 
@@ -56,6 +56,6 @@ func filterByDesignation(desig entity.StaffDesignation) func(*gorm.DB) *gorm.DB 
 		if desig == entity.StaffDesignationUnspecified {
 			return db
 		}
-		return db.Where("players.position=?", desig)
+		return db.Where("staffs.designation=?", desig)
 	}
 }

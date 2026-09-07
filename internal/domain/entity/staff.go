@@ -39,12 +39,11 @@ type Staff struct {
 	ID           uuid.UUID `gorm:"type:uuid;primaryKey"`
 	TeamMemberID uuid.UUID `gorm:"type:uuid;uniqueIndex"`
 	FullName     string
-	DateOfBirth  time.Time
 	Role         StaffRole
 	Designation  StaffDesignation
 	PhoneNum     string
-	ImageKey     string
+	ImageKey     *string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time   
-	TeamMember   TeamMember `gorm:"foreignKey:TeamMemberID;references:ID"`
+	TeamMember   TeamMember `gorm:"foreignKey:TeamMemberID;references:ID;constraint:OnDelete:CASCADE;"`
 }

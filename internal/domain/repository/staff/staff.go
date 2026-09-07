@@ -15,12 +15,16 @@ import (
 type StaffRepository interface {
 	AddStaff(context.Context, *entity.Staff) (*entity.Staff, error)
 	UpdateImageKey(context.Context, uuid.UUID, string) error
-	GetStaff(context.Context, uuid.UUID, uuid.UUID) (*entity.Staff, error)
-	GetStaffImageKey(ctx context.Context, staffID uuid.UUID) (string, error)
+	GetStaff(ctx context.Context, teamID uuid.UUID, staffID uuid.UUID) (*entity.Staff, error)
+	GetStaffImageKey(ctx context.Context, teamID, staffID uuid.UUID) (string, error)
+	UpdateStaffImageURL(ctx context.Context, teamID, staffID uuid.UUID) error
 	CountByDesination(ctx context.Context, teamID uuid.UUID, desig entity.StaffDesignation) (int32, error)
 	UpdateStaff(ctx context.Context, staffID uuid.UUID, staff *entity.Staff) (*entity.Staff, error)
 	ListStaff(ctx context.Context, teamID uuid.UUID, details *ListStaffDetails) ([]entity.Staff, int32, error)
 	ReleaseStaff(ctx context.Context, teamID uuid.UUID, staffID uuid.UUID) error
+	DeleteStaff(ctx context.Context, staffID uuid.UUID) error
+	GetStaffDesignation(ctx context.Context, teamID, userID uuid.UUID) (entity.StaffDesignation, error)
+	GetStaffByTeamMemberID(ctx context.Context, teamMemberID uuid.UUID) (*entity.Staff, error)
 }
 
 type staffRepository struct {
@@ -49,7 +53,7 @@ func (sr *staffRepository) GetStaff(ctx context.Context, teamID uuid.UUID, staff
 
 	var staff entity.Staff
 	if err := sr.db.WithContext(ctx).Preload("TeamMember").Joins("JOIN team_members tm ON staffs.team_member_id=tm.id").
-		Where("staff.id=? AND tm.team_id=?", staffID, teamID).First(&staff).Error; err != nil {
+		Where("staffs.id=? AND tm.team_id=?", staffID, teamID).First(&staff).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.NewNotFoundError("staff is not found in this id")
 		}
@@ -75,10 +79,10 @@ func (sr *staffRepository) UpdateImageKey(ctx context.Context, staffID uuid.UUID
 	return nil
 }
 
-func (sr *staffRepository) GetStaffImageKey(ctx context.Context, staffID uuid.UUID) (string, error) {
+func (sr *staffRepository) GetStaffImageKey(ctx context.Context, teamID uuid.UUID, staffID uuid.UUID) (string, error) {
 
 	var key string
-	if err := sr.db.WithContext(ctx).Model(&entity.Staff{}).Where("id=?", staffID).Pluck("image_key", &key).Error; err != nil {
+	if err := sr.db.WithContext(ctx).Model(&entity.Staff{}).Joins("JOIN team_members tm ON staffs.team_member_id=tm.id").Where("staffs.id=? AND tm.id=?", staffID, teamID).Pluck("staffs.image_key", &key).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", apperror.NewNotFoundError("staff is not found")
 		}
@@ -89,7 +93,7 @@ func (sr *staffRepository) GetStaffImageKey(ctx context.Context, staffID uuid.UU
 
 func (sr *staffRepository) CountByDesination(ctx context.Context, teamID uuid.UUID, desig entity.StaffDesignation) (int32, error) {
 	var count int64
-	result := sr.db.WithContext(ctx).Model(&entity.Staff{}).Joins("JOIN team_members tm ON staffs.team_member_id=tm.id").Where("tm.team_id=? AND designation=?", teamID).Count(&count)
+	result := sr.db.WithContext(ctx).Model(&entity.Staff{}).Joins("JOIN team_members tm ON staffs.team_member_id=tm.id").Where("tm.team_id=? AND staffs.designation=?", teamID, desig).Count(&count)
 
 	if result.Error != nil {
 		return -1, apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
@@ -117,7 +121,7 @@ func (sr *staffRepository) ListStaff(ctx context.Context, teamID uuid.UUID, deta
 	var total int64
 	var staff []entity.Staff
 
-	query := sr.db.WithContext(ctx).Model(&entity.Staff{}).Preload("TeamMember").Joins("team_members tm ON staffs.team_member_id=tm.id").Scopes(
+	query := sr.db.WithContext(ctx).Model(&entity.Staff{}).Preload("TeamMember").Joins("JOIN team_members tm ON staffs.team_member_id=tm.id").Scopes(
 		Search(details.Search),
 		GetTeamStaff(teamID),
 		filterByRole(details.Role),
@@ -157,5 +161,87 @@ func (sr *staffRepository) ReleaseStaff(ctx context.Context, teamID uuid.UUID, s
 	if result.RowsAffected == 0 {
 		return apperror.NewNotFoundError("staff not found in this id")
 	}
+	return nil
+}
+
+func (sr *staffRepository) DeleteStaff(ctx context.Context, staffID uuid.UUID) error {
+	result := sr.db.WithContext(ctx).Delete(&entity.Staff{}, staffID)
+	if result.Error != nil {
+		sr.logger.Error("database error", "method", "staffRepo.DeleteStaff", "error", result.Error)
+		return apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return apperror.NewNotFoundError("staff is not found")
+	}
+
+	return nil
+
+}
+
+func (tm *staffRepository) GetStaffDesignation(ctx context.Context, teamID, userID uuid.UUID) (entity.StaffDesignation, error) {
+
+	var result struct {
+		Designation entity.StaffDesignation
+	}
+
+	err := tm.db.WithContext(ctx).
+		Model(&entity.Staff{}).
+		Select("staffs.designation").
+		Joins("JOIN team_members tm ON staffs.team_member_id=tm.id").
+		Where("tm.user_id =? AND tm.team_id=? AND tm.status=?", userID, teamID, entity.TeamMemberStatusActive).
+		Take(&result).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", apperror.NewPermissionDeniedError("staff member not found or is not an active member in the team")
+		}
+		tm.logger.Error("database error", "error", err)
+		return "", apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+
+	return result.Designation, nil
+}
+
+func (tm *staffRepository) GetStaffByTeamMemberID(ctx context.Context, teamMemberID uuid.UUID) (*entity.Staff, error) {
+	var staff entity.Staff
+	if err := tm.db.WithContext(ctx).Preload("TeamMember").
+		Where("staffs.team_member_id=?", teamMemberID).Take(&staff).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.NewNotFoundError("staff is not exist")
+		}
+		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+	return &staff, nil
+}
+
+func (r *staffRepository) UpdateStaffImageURL(
+	ctx context.Context,
+	teamID, staffID uuid.UUID,
+) error {
+	result := r.db.WithContext(ctx).
+		Model(&entity.Staff{}).
+		Where(`
+			staffs.id = ?
+			AND EXISTS (
+				SELECT 1
+				FROM team_members tm
+				WHERE tm.id = staffs.team_member_id
+				AND tm.team_id = ?
+			)
+		`, staffID, teamID).
+		Update("image_key", "")
+
+	if result.Error != nil {
+		return apperror.NewInternalError(
+			"failed to remove staff image",
+			result.Error,
+		)
+	}
+
+	if result.RowsAffected == 0 {
+		return apperror.NewNotFoundError("staff not found")
+	}
+
 	return nil
 }

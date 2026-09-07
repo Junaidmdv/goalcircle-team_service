@@ -23,13 +23,14 @@ type StaffHandler struct {
 	teamv1.UnimplementedStaffServiceServer
 	StaffUsecase staffuc.StaffUsecase
 	timeOut      time.Duration
-	validater    validater.Validater
+	validater    *validater.Validater
 }
 
-func NewStaffHandler(stafuc staffuc.StaffUsecase, timeout time.Duration) *StaffHandler {
+func NewStaffHandler(stafuc staffuc.StaffUsecase, timeout time.Duration, validater *validater.Validater) *StaffHandler {
 	return &StaffHandler{
 		StaffUsecase: stafuc,
 		timeOut:      timeout,
+		validater:    validater,
 	}
 
 }
@@ -70,11 +71,6 @@ func (sh *StaffHandler) AddStaff(stream grpc.ClientStreamingServer[pb.AddStaffRe
 			buffer.Write(data.Chunks)
 		}
 	}
-
-	if err := imageutil.ValidateImage(buffer.Bytes(), imageutil.StaffImage); err != nil {
-		return apperror.GRPCStatus(err)
-	}
-
 	request := ToCreateStaff(staffDetails)
 
 	if validationErrs := sh.validater.Validation(request); validationErrs != nil {
@@ -85,13 +81,17 @@ func (sh *StaffHandler) AddStaff(stream grpc.ClientStreamingServer[pb.AddStaffRe
 		return stWithDetails.Err()
 	}
 
+	if err := imageutil.ValidateImage(buffer.Bytes(), imageutil.StaffImage); err != nil {
+		return apperror.GRPCStatus(err)
+	}
+
 	staff, err := sh.StaffUsecase.AddStaff(ctx, &staffuc.AddStaffReq{
 		TeamID:           request.TeamID,
 		UserID:           request.UserID,
 		FullName:         request.FullName,
 		Role:             request.Role,
 		Designation:      request.Designation,
-		DOB:              request.DOB,
+		PhoneNum:         request.PhoneNum,
 		TeamMemberStatus: entity.TeamMemberStatusInactive,
 		ImageBytes:       buffer.Bytes(),
 	})
@@ -104,9 +104,9 @@ func (sh *StaffHandler) AddStaff(stream grpc.ClientStreamingServer[pb.AddStaffRe
 		StaffId:      staff.StaffID.String(),
 		TeamMemberId: staff.TeamMemberID.String(),
 		FullName:     staff.FullName,
-		Age:          staff.Age,
 		Role:         string(staff.Role),
 		Designatin:   string(staff.Designation),
+		ImageUrl:     staff.PresignedUrl,
 	})
 
 }
@@ -141,8 +141,6 @@ func (tm *StaffHandler) ListTeamStaff(ctx context.Context, input *pb.ListTeamSta
 			Role:         v.Role,
 			Designation:  v.Designation,
 			PresignedUrl: v.PresignedUrl,
-			ReleasedAt:   timestamppb.New(v.ReleasedAt),
-			JoinedAt:     timestamppb.New(v.JoinedAt),
 			Status:       v.Status,
 		})
 	}
@@ -177,7 +175,6 @@ func (sh *StaffHandler) UpdateStaff(ctx context.Context, input *pb.UpdateStaffRe
 		TeamID:      request.TeamID,
 		StaffID:     request.StaffID,
 		FullName:    *request.FullName,
-		DateOfBirth: *request.DateOfBirth,
 		Role:        *request.Role,
 		Designation: *request.Designation,
 		PhoneNum:    *request.PhoneNum,
@@ -192,7 +189,6 @@ func (sh *StaffHandler) UpdateStaff(ctx context.Context, input *pb.UpdateStaffRe
 		TeamMemberId: res.TeamMemberID.String(),
 		FullName:     res.FullName,
 		DateOfBirth:  timestamppb.New(res.DateOfBirth),
-		Age:          res.Age,
 		Role:         res.Role,
 		Designation:  res.Designation,
 		PhoneNum:     res.PhoneNum,
@@ -215,7 +211,6 @@ func (sh *StaffHandler) GetStaff(ctx context.Context, input *pb.GetStaffReq) (*p
 		Id:           res.ID,
 		TeamMemberId: res.TeamMemberID,
 		FullName:     res.FullName,
-		DateOfBirth:  res.DateOfBirth,
 		Role:         res.Role,
 		Designation:  res.Designation,
 		PhoneNum:     res.PhoneNum,
@@ -288,6 +283,7 @@ func (sh *StaffHandler) GetStaffImageUrl(ctx context.Context, input *pb.GetStaff
 
 	res, err := sh.StaffUsecase.GetStaffImagePresignedUrl(ctx, &staffuc.StaffImagePresignedUrlReq{
 		StaffID: input.StaffId,
+		TeamID:  input.TeamId,
 	})
 
 	if err != nil {
@@ -341,5 +337,38 @@ func (sh *StaffHandler) ReleaseStaff(ctx context.Context, input *pb.ReleaseStaff
 		Status:       res.Status,
 		JoinedAt:     res.JoinedAt,
 		ReleasedAt:   res.ReleasedAt,
+	}, nil
+}
+
+func (sh *StaffHandler) GetStaffProfile(ctx context.Context, input *pb.GetStaffProfileReq) (*pb.GetStaffProfileRes, error) {
+	ctx, cancel := context.WithTimeout(ctx, sh.timeOut)
+	defer cancel()
+
+	res, err := sh.StaffUsecase.GetStaffProfile(ctx, &staffuc.GetStaffProfileReq{
+		UserID: input.UserId,
+	})
+
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
+
+	return &pb.GetStaffProfileRes{
+		Team: &pb.GetStaffProfileRes_TeamDetails{
+			TeamId:    res.Team.TeamID,
+			Name:      res.Team.Name,
+			ShortName: res.Team.ShortName,
+			City:      res.Team.City,
+			TeamCode:  res.Team.TeamCode,
+		},
+		Staff: &pb.GetStaffProfileRes_StaffDetails{
+			StaffId:      res.Staff.StaffID,
+			TeamMemberId: res.Staff.TeamMemberID,
+			UserId:       res.Staff.TeamMemberID,
+			FullName:     res.Staff.FullName,
+			Role:         string(res.Staff.Role),
+			Designation:  string(res.Staff.Designation),
+			PhoneNum:     res.Staff.PhoneNum,
+			CreatedAt:    timestamppb.New(res.Staff.CreatedAt),
+		},
 	}, nil
 }

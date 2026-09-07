@@ -11,6 +11,8 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/permission"
 	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
+	teamrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
+
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/storage"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
@@ -30,11 +32,13 @@ type StaffUsecase interface {
 	ListTeamStaff(context.Context, *ListTeamStaffReq) (*ListTeamStaffRes, error)
 	ReleaseStaff(context.Context, *ReleaseStaffReq) (*ReleaseStaffRes, error)
 	TransferOwnership(context.Context, *TransferOwnershipReq) (*TransferOwnershipRes, error)
+	GetStaffProfile(ctx context.Context, req *GetStaffProfileReq) (*GetStaffProfileRes, error)
 }
 
 type staffUsecase struct {
 	teamMemberRepo teammember.TeamMemberRepository
 	staffRepo      staffrepo.StaffRepository
+	teamRepo       teamrepo.TeamRepository
 	date           datetime.DateCalculator
 	objstore       storage.ObjectStorage
 	objcfg         *config.ObjectStorageConfig
@@ -43,6 +47,7 @@ type staffUsecase struct {
 
 func NewTeamStaffUsecase(tm teammember.TeamMemberRepository,
 	sr staffrepo.StaffRepository,
+	tmrepo teamrepo.TeamRepository,
 	date datetime.DateCalculator,
 	objst storage.ObjectStorage,
 	cnfg *config.ObjectStorageConfig,
@@ -50,22 +55,13 @@ func NewTeamStaffUsecase(tm teammember.TeamMemberRepository,
 	return &staffUsecase{
 		teamMemberRepo: tm,
 		staffRepo:      sr,
+		teamRepo:       tmrepo,
 		date:           date,
 		objstore:       objst,
 		objcfg:         cnfg,
 		logger:         logger,
 	}
 }
-
-// func (su *staffUsecase) AddOwner(ctx context.Context, req *AddOwnerReq) (*AddOwnerRes, error) {
-
-
-
-
-
-
-
-
 
 func (su *staffUsecase) AddStaff(ctx context.Context, req *AddStaffReq) (*AddStaffRes, error) {
 
@@ -80,7 +76,7 @@ func (su *staffUsecase) AddStaff(ctx context.Context, req *AddStaffReq) (*AddSta
 		return nil, apperror.NewBadRequestError("invalid team id")
 	}
 
-	teamOwnerRole, err := su.teamMemberRepo.GetStaffDesignation(ctx, userID)
+	teamOwnerRole, err := su.staffRepo.GetStaffDesignation(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +94,6 @@ func (su *staffUsecase) AddStaff(ctx context.Context, req *AddStaffReq) (*AddSta
 	teamMember, err := su.teamMemberRepo.AddTeamMember(ctx, &entity.TeamMember{
 		ID:     uuid.New(),
 		TeamID: teamID,
-		Role:   entity.TeamMemberRoleStaff,
 		Status: req.TeamMemberStatus,
 	})
 
@@ -119,49 +114,40 @@ func (su *staffUsecase) AddStaff(ctx context.Context, req *AddStaffReq) (*AddSta
 		ID:           uuid.New(),
 		TeamMemberID: teamMember.ID,
 		FullName:     req.FullName,
-		DateOfBirth:  req.DOB,
 		Role:         req.Role,
 		Designation:  req.Designation,
+		PhoneNum:     *req.PhoneNum,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	var presignedUrl string
-
-	if staff.Designation != entity.StaffDesignationOwner {
-
-		webbytes, err := imageutil.ConvertImageIntoWebpbFormate(req.ImageBytes)
-		if err != nil {
-			return nil, err
-		}
-
-		objectName := fmt.Sprintf("staff/%s/profile.webp", staff.ID)
-
-		key, err := su.objstore.Upload(ctx, su.objcfg.Bucket, objectName, bytes.NewReader(webbytes), int64(len(webbytes)), "image/webp")
-
-		if err != nil {
-			return nil, err
-		}
-
-		if err := su.staffRepo.UpdateImageKey(ctx, staff.ID, key); err != nil {
-			return nil, err
-		}
-
-		presignedUrl, err = su.objstore.GetPresignedURL(ctx, su.objcfg.Bucket, key, su.objcfg.PresignedURLExpiry)
-		if err != nil {
-			return nil, err
-		}
-
+	webbytes, err := imageutil.ConvertImageIntoWebpbFormate(req.ImageBytes)
+	if err != nil {
+		return nil, err
 	}
 
-	age := su.date.CalculateAge(req.DOB)
+	objectName := fmt.Sprintf("staff/%s/profile.webp", staff.ID)
+
+	key, err := su.objstore.Upload(ctx, su.objcfg.Bucket, objectName, bytes.NewReader(webbytes), int64(len(webbytes)), "image/webp")
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := su.staffRepo.UpdateImageKey(ctx, staff.ID, key); err != nil {
+		return nil, err
+	}
+
+	presignedUrl, err := su.objstore.GetPresignedURL(ctx, su.objcfg.Bucket, key, su.objcfg.PresignedURLExpiry)
+	if err != nil {
+		return nil, err
+	}
 
 	return &AddStaffRes{
 		StaffID:      staff.ID,
 		TeamMemberID: teamMember.ID,
 		FullName:     staff.FullName,
-		Age:          age,
 		Role:         staff.Role,
 		Designation:  req.Designation,
 		PresignedUrl: presignedUrl,
@@ -188,7 +174,6 @@ func (su *staffUsecase) GetStaff(ctx context.Context, req *GetStaffReq) (*GetSta
 		ID:           staff.ID.String(),
 		TeamMemberID: staff.TeamMemberID.String(),
 		FullName:     staff.FullName,
-		DateOfBirth:  staff.DateOfBirth.Format("2006-01-02 15:04:05"),
 		Role:         string(staff.Role),
 		Designation:  string(staff.Designation),
 		PhoneNum:     staff.PhoneNum,
@@ -215,7 +200,7 @@ func (su *staffUsecase) UploadStaffImage(ctx context.Context, req *UploadStaffIm
 		return nil, apperror.NewBadRequestError("invalid staffid")
 	}
 
-	teamOwnerRole, err := su.teamMemberRepo.GetStaffDesignation(ctx, userID)
+	teamOwnerRole, err := su.staffRepo.GetStaffDesignation(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +220,14 @@ func (su *staffUsecase) UploadStaffImage(ctx context.Context, req *UploadStaffIm
 		return nil, err
 	}
 
-	key, err := su.objstore.Upload(ctx, su.objcfg.Bucket, staff.ImageKey, bytes.NewReader(webbytes), int64(len(webbytes)), "image/webp")
+	if staff.ImageKey == nil || *staff.ImageKey == "" {
+		*staff.ImageKey = fmt.Sprintf("staff/%s/profile.webp", staff.ID)
+		if err := su.staffRepo.UpdateImageKey(ctx, staffID, *staff.ImageKey); err != nil {
+			return nil, err
+		}
+	}
+
+	key, err := su.objstore.Upload(ctx, su.objcfg.Bucket, *staff.ImageKey, bytes.NewReader(webbytes), int64(len(webbytes)), "image/webp")
 
 	if err != nil {
 		return nil, err
@@ -253,17 +245,27 @@ func (su *staffUsecase) UploadStaffImage(ctx context.Context, req *UploadStaffIm
 }
 
 func (tm *staffUsecase) GetStaffImagePresignedUrl(ctx context.Context, req *StaffImagePresignedUrlReq) (*StaffImagePresignedUrlRes, error) {
+
+	teamID, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+
 	staffID, err := uuid.Parse(req.StaffID)
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid staff id")
 	}
 
-	key, err := tm.staffRepo.GetStaffImageKey(ctx, staffID)
+	staff, err := tm.staffRepo.GetStaff(ctx, teamID, staffID)
 	if err != nil {
 		return nil, err
 	}
 
-	presignedurl, err := tm.objstore.GetPresignedURL(ctx, tm.objcfg.Bucket, key, tm.objcfg.PresignedURLExpiry)
+	if *staff.ImageKey == "" {
+		return nil, apperror.NewNotFoundError("image is not added or removed")
+	}
+
+	presignedurl, err := tm.objstore.GetPresignedURL(ctx, tm.objcfg.Bucket, *staff.ImageKey, tm.objcfg.PresignedURLExpiry)
 	if err != nil {
 		return nil, err
 	}
@@ -277,10 +279,16 @@ func (tm *staffUsecase) GetStaffImagePresignedUrl(ctx context.Context, req *Staf
 func (su *staffUsecase) RemoveStaffImage(ctx context.Context, req *RemoveStaffImageReq) (*RemoveStaffImageRes, error) {
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		su.logger.Error("invalid team id", "error", errors.New("invalid user id from token"))
+		su.logger.Error("invalid data", "error", errors.New("invalid user id from token"))
 		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
 	}
-	teamOwnerRole, err := su.teamMemberRepo.GetStaffDesignation(ctx, userID)
+
+	teamID, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+
+	teamOwnerRole, err := su.staffRepo.GetStaffDesignation(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -295,13 +303,17 @@ func (su *staffUsecase) RemoveStaffImage(ctx context.Context, req *RemoveStaffIm
 		return nil, apperror.NewBadRequestError("invalid staffid")
 	}
 
-	key, err := su.staffRepo.GetStaffImageKey(ctx, staffID)
+	staff, err := su.staffRepo.GetStaff(ctx, teamID, staffID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = su.objstore.Delete(ctx, su.objcfg.Bucket, key)
+	err = su.objstore.Delete(ctx, su.objcfg.Bucket, *staff.ImageKey)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := su.staffRepo.UpdateStaffImageURL(ctx, teamID, staffID); err != nil {
 		return nil, err
 	}
 
@@ -317,7 +329,13 @@ func (su *staffUsecase) UpdateStaff(ctx context.Context, req *UpdateStaffReq) (*
 		su.logger.Error("invalid user id from token", "error", err)
 		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
 	}
-	teamOwnerRole, err := su.teamMemberRepo.GetStaffDesignation(ctx, userID)
+
+	teamID, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+
+	teamOwnerRole, err := su.staffRepo.GetStaffDesignation(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -325,10 +343,6 @@ func (su *staffUsecase) UpdateStaff(ctx context.Context, req *UpdateStaffReq) (*
 	permite := permission.HasPermission(teamOwnerRole, permission.PermissionAddStaff)
 	if !permite {
 		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
-	}
-	teamID, err := uuid.Parse(req.TeamID)
-	if err != nil {
-		return nil, apperror.NewBadRequestError("invalid team id")
 	}
 
 	staffID, err := uuid.Parse(req.StaffID)
@@ -364,7 +378,6 @@ func (su *staffUsecase) UpdateStaff(ctx context.Context, req *UpdateStaffReq) (*
 	res, err := su.staffRepo.UpdateStaff(ctx, staffID, &entity.Staff{
 		ID:          staffID,
 		FullName:    req.FullName,
-		DateOfBirth: req.DateOfBirth,
 		Role:        req.Role,
 		Designation: req.Designation,
 		PhoneNum:    req.PhoneNum,
@@ -378,7 +391,6 @@ func (su *staffUsecase) UpdateStaff(ctx context.Context, req *UpdateStaffReq) (*
 		StaffID:      res.ID,
 		TeamMemberID: res.TeamMemberID,
 		FullName:     res.FullName,
-		DateOfBirth:  res.DateOfBirth,
 		Role:         string(res.Role),
 		Designation:  string(res.Designation),
 		PhoneNum:     res.PhoneNum,
@@ -389,7 +401,7 @@ func (su *staffUsecase) UpdateStaff(ctx context.Context, req *UpdateStaffReq) (*
 func (su *staffUsecase) ListTeamStaff(ctx context.Context, req *ListTeamStaffReq) (*ListTeamStaffRes, error) {
 	teamId, err := uuid.Parse(req.TeamID)
 	if err != nil {
-		return nil, apperror.NewBadRequestError("invalid player id")
+		return nil, apperror.NewBadRequestError("invalid team id")
 	}
 	if req.Page <= 0 {
 		req.Page = 1
@@ -428,12 +440,10 @@ func (su *staffUsecase) ListTeamStaff(ctx context.Context, req *ListTeamStaffReq
 			FullName:     s.FullName,
 			Role:         string(s.Role),
 			Designation:  string(s.Designation),
-			JoinedAt:     s.TeamMember.JoinedAt,
-			ReleasedAt:   s.TeamMember.ReleasedAt,
 			Status:       string(s.TeamMember.Status),
 		})
 
-		presignedUrl, err := su.objstore.GetPresignedURL(ctx, su.objcfg.Bucket, s.ImageKey, su.objcfg.PresignedURLExpiry)
+		presignedUrl, err := su.objstore.GetPresignedURL(ctx, su.objcfg.Bucket, *s.ImageKey, su.objcfg.PresignedURLExpiry)
 		if err == nil {
 			staff[i].PresignedUrl = presignedUrl
 		}
@@ -457,7 +467,12 @@ func (su *staffUsecase) ReleaseStaff(ctx context.Context, req *ReleaseStaffReq) 
 		su.logger.Error("invalid user id from token", "error", err)
 		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
 	}
-	teamOwnerRole, err := su.teamMemberRepo.GetStaffDesignation(ctx, userID)
+
+	teamID, err := uuid.Parse(req.TeamID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid team id")
+	}
+	teamOwnerRole, err := su.staffRepo.GetStaffDesignation(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -467,10 +482,6 @@ func (su *staffUsecase) ReleaseStaff(ctx context.Context, req *ReleaseStaffReq) 
 		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
 	}
 
-	teamID, err := uuid.Parse(req.TeamID)
-	if err != nil {
-		return nil, apperror.NewBadRequestError("invalid team id")
-	}
 	staffID, err := uuid.Parse(req.StaffID)
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid staff id")
@@ -500,4 +511,51 @@ func (su *staffUsecase) ReleaseStaff(ctx context.Context, req *ReleaseStaffReq) 
 
 func (tm *staffUsecase) TransferOwnership(ctx context.Context, req *TransferOwnershipReq) (*TransferOwnershipRes, error) {
 	return nil, nil
+}
+
+func (tm *staffUsecase) GetStaffProfile(ctx context.Context, req *GetStaffProfileReq) (*GetStaffProfileRes, error) {
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid user id")
+	}
+
+	teamMember, err := tm.teamMemberRepo.GetActiveTeamMemberByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if teamMember.Role != entity.TeamMemberStaff {
+		return nil, apperror.NewBadRequestError("user is not staff")
+	}
+
+	team, err := tm.teamRepo.GetTeamDetails(ctx, teamMember.TeamID)
+	if err != nil {
+		return nil, err
+	}
+
+	staff, err := tm.staffRepo.GetStaffByTeamMemberID(ctx, teamMember.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetStaffProfileRes{
+		Team: &TeamDetail{
+			TeamID:    team.ID.String(),
+			Name:      team.Name,
+			ShortName: team.ShortName,
+			City:      team.City,
+			TeamCode:  team.TeamCode,
+		},
+		Staff: &StaffDetail{
+			TeamMemberID: teamMember.ID.String(),
+			StaffID:      staff.ID.String(),
+			UserID:       teamMember.UserID.String(),
+			TeamID:       teamMember.TeamID.String(),
+			FullName:     staff.FullName,
+			Role:         staff.Role,
+			Designation:  staff.Designation,
+			PhoneNum:     staff.PhoneNum,
+			CreatedAt:    staff.CreatedAt,
+		},
+	}, nil
 }

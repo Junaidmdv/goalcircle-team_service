@@ -90,12 +90,11 @@ func ToCreateStaff(req *pb.StaffDetails) *AddStaffReq {
 		FullName:    req.FullName,
 		Role:        role,
 		Designation: desig,
-		DOB:         req.Dob.AsTime(),
+		PhoneNum:    req.PhoneNum,
 	}
 }
 
 func ToUpdateStaff(req *pb.UpdateStaffReq) *UpdateStaffReq {
-	dob := req.Dob.AsTime()
 	role := MapStaffRole(*req.Role)
 	desig := MapStaffDesignation(*req.Designation)
 	return &UpdateStaffReq{
@@ -103,7 +102,6 @@ func ToUpdateStaff(req *pb.UpdateStaffReq) *UpdateStaffReq {
 		TeamID:      req.TeamId,
 		StaffID:     req.StaffId,
 		FullName:    req.FullName,
-		DateOfBirth: &dob,
 		Role:        &role,
 		Designation: &desig,
 		PhoneNum:    req.PhoneNum,

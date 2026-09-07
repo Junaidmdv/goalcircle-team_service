@@ -7,19 +7,13 @@ import (
 	"github.com/google/uuid"
 )
 
-
-
-
-
-
-
 type AddStaffReq struct {
 	UserID           string
 	TeamID           string
 	FullName         string
+	PhoneNum         *string
 	Role             entity.StaffRole
 	Designation      entity.StaffDesignation
-	DOB              time.Time
 	TeamMemberStatus entity.TeamMemberStatus
 	ImageBytes       []byte
 }
@@ -47,6 +41,7 @@ type UploadStaffImageRes struct {
 }
 
 type StaffImagePresignedUrlReq struct {
+	TeamID  string
 	StaffID string
 }
 
@@ -81,8 +76,6 @@ type StaffDetails struct {
 	Role         string
 	Designation  string
 	PresignedUrl string
-	ReleasedAt   time.Time
-	JoinedAt     time.Time
 	Status       string
 }
 
@@ -103,7 +96,6 @@ type UpdateStaffReq struct {
 	TeamID      string
 	StaffID     string
 	FullName    string
-	DateOfBirth time.Time
 	Role        entity.StaffRole
 	Designation entity.StaffDesignation
 	PhoneNum    string
@@ -114,7 +106,6 @@ type UpdateStaffRes struct {
 	TeamMemberID uuid.UUID
 	FullName     string
 	DateOfBirth  time.Time
-	Age          int32
 	Role         string
 	Designation  string
 	PhoneNum     string
@@ -154,7 +145,6 @@ type GetStaffRes struct {
 	ID           string
 	TeamMemberID string
 	FullName     string
-	DateOfBirth  string
 	Role         string
 	Designation  string
 	PhoneNum     string
@@ -164,13 +154,39 @@ type GetStaffRes struct {
 	ReleasedAt   string
 }
 
-
-type RegisterTeamMemberReq struct{  
-	UserID string 
-	Code string 
-
+type RegisterTeamMemberReq struct {
+	UserID string
+	Code   string
 }
 
-type RegisterTeamMemberRes struct{
+type RegisterTeamMemberRes struct {
+}
 
+type GetStaffProfileReq struct {
+	UserID string
+}
+
+type StaffDetail struct {
+	TeamMemberID string
+	StaffID      string
+	UserID       string
+	TeamID       string
+	FullName     string
+	Role         entity.StaffRole
+	Designation  entity.StaffDesignation
+	PhoneNum     string
+	CreatedAt    time.Time
+}
+
+type TeamDetail struct {
+	TeamID    string
+	Name      string
+	ShortName string
+	City      string
+	TeamCode  string
+}
+
+type GetStaffProfileRes struct {
+	Team  *TeamDetail
+	Staff *StaffDetail
 }

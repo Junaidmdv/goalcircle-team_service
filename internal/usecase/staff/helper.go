@@ -8,11 +8,16 @@ import (
 )
 
 var staffLimits = map[entity.StaffDesignation]int32{
-	entity.StaffDesignationOwner:          1,
-	entity.StaffDesignationManager:        1,
-	entity.StaffDesignationHeadCoach:      1,
-	entity.StaffDesignationAssistantCoach: 5,
-	entity.StaffDesignationOther:          20,
+	entity.StaffDesignationOwner:           1,
+	entity.StaffDesignationManager:         1,
+	entity.StaffDesignationHeadCoach:       1,
+	entity.StaffDesignationAnalyst:         20,
+	entity.StaffDesignationAssistantCoach:  5,
+	entity.StaffDesignationFitnessCoach:    5,
+	entity.StaffDesignationPhysio:          5,
+	entity.StaffDesignationGoalkeeperCoach: 5,
+	entity.StaffDesignationDoctor:          2,
+	entity.StaffDesignationOther:           20,
 }
 
 func StaffMaxLimit(desig entity.StaffDesignation, count int32) error {
@@ -26,9 +31,7 @@ func StaffMaxLimit(desig entity.StaffDesignation, count int32) error {
 	}
 	return nil
 
-}  
-
-
+}
 
 var validDesignations = map[entity.StaffRole]map[entity.StaffDesignation]struct{}{
 	entity.StaffRoleManagement: {
@@ -54,8 +57,6 @@ var validDesignations = map[entity.StaffRole]map[entity.StaffDesignation]struct{
 	},
 }
 
-
-
 func IsValidStaffRoleDesignation(
 	role entity.StaffRole,
 	designation entity.StaffDesignation,
@@ -68,4 +69,3 @@ func IsValidStaffRoleDesignation(
 	_, ok = designations[designation]
 	return ok
 }
-

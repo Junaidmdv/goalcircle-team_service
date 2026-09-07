@@ -324,7 +324,6 @@ func (ph *PlayerHandler) GetPlayerPresignedUrl(ctx context.Context, req *pb.GetP
 	defer cancel()
 
 	res, err := ph.playerUc.GetPlayerPresignedUrl(ctx, &player.GetPlayerPresignedUrlReq{
-		UserID:   req.UserId,
 		PlayerID: req.PlayerId,
 		TeamID:   req.TeamId,
 	})

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"net/http"
 
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
@@ -64,34 +66,32 @@ var ImageConfigs = map[ImageType]ImageConfig{
 }
 
 func ValidateImage(imageData []byte, imagetype ImageType) error {
-	contentType := http.DetectContentType(imageData)
 
 	m, ok := ImageConfigs[imagetype]
 	if !ok {
-		return  apperror.NewInternalError(apperror.InternalErrorMsg, errors.New("unknown image type"))
-
+		return apperror.NewInternalError(apperror.InternalErrorMsg, errors.New("unknown image type"))
 	}
-
+	contentType := http.DetectContentType(imageData)
 	_, exist := m.AllowedTypes[contentType]
 
 	if !exist {
-		return  apperror.NewInvalidArgumentError("unsupported image content type")
+		return apperror.NewInvalidArgumentError("unsupported image content type")
 	}
 
 	config, _, err := image.DecodeConfig(bytes.NewReader(imageData))
 	if err != nil {
-		return  apperror.NewInternalError("failed decode image", err)
+		return apperror.NewInternalError("invalid image", err)
 	}
 
 	if config.Height > m.MaxHeight || config.Width > m.MaxWidth {
-		return  apperror.NewInvalidArgumentError("logo dimensions must be at least 512x512")
+		return apperror.NewInvalidArgumentError("logo dimensions must be at least 512x512")
 	}
 
 	if config.Height < m.MinHeight || config.Width < m.MinWidth {
-		return  apperror.NewInvalidArgumentError("logo dimensions must be at least 256x256")
+		return apperror.NewInvalidArgumentError("logo dimensions must be at least 256x256")
 	}
 
-	return  nil
+	return nil
 }
 
 func ConvertImageIntoWebpbFormate(imageData []byte) ([]byte, error) {

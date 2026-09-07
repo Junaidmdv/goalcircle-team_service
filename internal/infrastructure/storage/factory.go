@@ -14,9 +14,9 @@ import (
 )
 
 type ObjectStorage interface {
-	Upload(context.Context,string, string, io.Reader, int64, string) (string, error)
-	GetPresignedURL(context.Context, string, string, time.Duration) (string, error)
-	Delete(context.Context, string, string) error
+	Upload(ctx context.Context, bucketName string, objectName string, imageData io.Reader, size int64, contentType string) (string, error)
+	GetPresignedURL(ctx context.Context, bucketName string, objectName string, expiry time.Duration) (string, error)
+	Delete(ctx context.Context, bucketName string, objectName string) error
 }
 
 func ObjectStorageFactoryMethod(ob config.ObjectStorageConfig, logger logger.Logger) (ObjectStorage, error) {

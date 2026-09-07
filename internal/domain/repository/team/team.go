@@ -118,7 +118,7 @@ func (tm *teamRepository) ListTeams(ctx context.Context, req *ListTeamsReq) ([]e
 	var total int64
 	var teams []entity.Team
 
-	query := tm.db.WithContext(ctx).Model(&entity.Team{}).Scopes(
+	query := tm.db.WithContext(ctx).Model(&entity.Team{}).Preload("TeamMember").Joins("JOIN team_members tm ON team.id=tm.team_id").Where("role=? AND").Scopes(
 		SearchTeam(req.Search),
 		FilterByCity(req.City),
 		FilterByTeamStatus(req.TeamStatus),

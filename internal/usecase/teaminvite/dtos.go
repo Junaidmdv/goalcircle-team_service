@@ -6,7 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
-type TeamInviteReq struct {
+type TeamInviteReq struct { 
+	TeamID       string 
 	UserID       string
 	TeamMemberID string
 }

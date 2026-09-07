@@ -150,7 +150,6 @@ func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*Crea
 		return nil, err
 	}
 
-
 	return &CreateTeamRes{
 		Team: &TeamDetails{
 			TeamID:    team.ID,
@@ -358,14 +357,29 @@ func (tu *teamUsecase) ListTeams(ctx context.Context, input *ListTeamsReq) (*Lis
 	var teamList []TeamData
 
 	for _, team := range teams {
+
 		teamList = append(teamList, TeamData{
 			TeamID:     team.ID,
 			Name:       team.Name,
 			City:       team.City,
-			LogoUrl:    *team.LogoKey,
 			TeamCode:   team.TeamCode,
 			TeamStatus: team.TeamStatus,
 		})
+
+		if team.LogoKey != nil && *team.LogoKey != "" {
+			logoURL, err := tu.objectStore.GetPresignedURL(
+				ctx,
+				tu.objectStoreConfig.Bucket,
+				*team.LogoKey,
+				tu.objectStoreConfig.PresignedURLExpiry,
+			)
+			if err != nil {
+				tu.logger.Error("failed to generate team logo presigned URL", "error", err)
+			} else {
+				team.LogoKey = &logoURL
+			}
+		}
+
 	}
 	totalPage := total / input.Limit
 	if total%input.Limit > 0 {
@@ -423,6 +437,7 @@ func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*Upl
 	if err != nil {
 		return nil, apperror.NewFailedPreCondition("invalid team id")
 	}
+
 	teamOwnerRole, err := tu.staffRepo.GetStaffDesignation(ctx, teamId, userID)
 	if err != nil {
 		return nil, err
@@ -440,6 +455,7 @@ func (tu *teamUsecase) UploadLogo(ctx context.Context, req *UploadLogoReq) (*Upl
 
 	webpBytes, err := imageutil.ConvertImageIntoWebpbFormate(req.LogoData)
 	if err != nil {
+		tu.logger.Error("failed update photo", "error", err)
 		return nil, err
 	}
 
@@ -480,7 +496,7 @@ func (tu *teamUsecase) GetPresignedURL(ctx context.Context, input *GetPresignedU
 	}
 
 	if team.LogoKey == nil {
-		return nil, apperror.NewBadRequestError("logo is not updated")
+		return nil, apperror.NewBadRequestError("logo is not updated or removed")
 	}
 
 	presignedUrl, err := tu.objectStore.GetPresignedURL(ctx, tu.objectStoreConfig.Bucket, *team.LogoKey, tu.objectStoreConfig.PresignedURLExpiry)

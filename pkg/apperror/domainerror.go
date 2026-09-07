@@ -35,7 +35,7 @@ func NewNotFoundError(msg string) *DomainError {
 }
 
 func NewInternalError(msg string, err error) *DomainError {
-	return &DomainError{Type: ErrorTypeConflict, Message: msg, Err: err}
+	return &DomainError{Type: ErrorTypeInternal, Message: msg, Err: err}
 }
 
 func NewConflictError(msg string) *DomainError {
@@ -81,7 +81,7 @@ func NewFailedPreCondition(msg string) *DomainError {
 	}
 }
 
-func NewPermissionDenied(msg string) *DomainError {
+func NewPermissionDeniedError(msg string) *DomainError {
 	return &DomainError{
 		Type:    ErrorPermissionDenied,
 		Message: msg,

@@ -13,6 +13,7 @@ import (
 	team_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
 	teammember_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/transaction"
 	team_handler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/team"
 	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
 	postgres "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/persistence/postgres"
@@ -78,17 +79,19 @@ func (gs *GRPCServer) BootstrapSetup() error {
 
 	datecalculater := datetime.NewDateCalculator()
 
+	transactionHandler := transaction.NewUnitOfWork(psqldb.DB, gs.logger)
+
 	teamRepository := team_repo.NewTeamRepository(psqldb.DB, gs.logger)
 	TeamMemberRepository := teammember_repo.NewTeamMemberRepository(psqldb.DB, gs.logger)
 	staffRepository := staffrepo.NewStaffRepository(psqldb.DB, gs.logger)
 	playerRepo := player.NewPlayerRepository(psqldb.DB, gs.logger)
 	teamInviteRepo := teaminvite.NewTeamMemberInviteRepository(psqldb.DB, gs.logger)
 
-	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater, TeamMemberRepository, playerRepo, objectStorage, gs.Config.StorageConfig)
-	teamMemberUc := teammemberuc.NewTeamMemberUsecase(TeamMemberRepository, teamInviteRepo, staffRepository, gs.logger)
-	teamStaffUc := staffuc.NewTeamStaffUsecase(TeamMemberRepository, staffRepository, datecalculater, objectStorage, gs.Config.StorageConfig, gs.logger)
-	playerUc := playeruc.NewPlayerUsecase(playerRepo, TeamMemberRepository, teamRepository, gs.logger, objectStorage, gs.Config.StorageConfig, codeGenerater)
-	teaminviteUc := inviteuc.NewTeamInviteUsecase(teamInviteRepo, codeGenerater, TeamMemberRepository)
+	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater, TeamMemberRepository, playerRepo, objectStorage, gs.Config.StorageConfig, datecalculater, transactionHandler, staffRepository)
+	teamMemberUc := teammemberuc.NewTeamMemberUsecase(TeamMemberRepository, teamInviteRepo, staffRepository, gs.logger, datecalculater)
+	teamStaffUc := staffuc.NewTeamStaffUsecase(TeamMemberRepository, staffRepository, teamRepository, datecalculater, objectStorage, gs.Config.StorageConfig, gs.logger)
+	playerUc := playeruc.NewPlayerUsecase(playerRepo, TeamMemberRepository, teamRepository, staffRepository, gs.logger, objectStorage, gs.Config.StorageConfig, codeGenerater)
+	teaminviteUc := inviteuc.NewTeamInviteUsecase(teamInviteRepo, codeGenerater, TeamMemberRepository, staffRepository)
 
 	userclient, err := userclientcon.NewUserGRPCClient(gs.Config.UserSrv, gs.logger)
 	if err != nil {
@@ -101,7 +104,7 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	teamMemberSaga := teamsaga.NewTeamMemberSaga(teamUsecase, teamMemberUc, userAuthpb, gs.logger)
 	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut, validater, teamMemberSaga)
 	playerHandler := playerHandler.NewPlayerHandler(playerUc, gs.logger, &gs.Config.Server.TimeOut, validater)
-	staffHandler := staffHandler.NewStaffHandler(teamStaffUc, gs.Config.Server.TimeOut)
+	staffHandler := staffHandler.NewStaffHandler(teamStaffUc, gs.Config.Server.TimeOut,validater)
 	inviteHandler := inviteHandler.NewTeamInviteHandler(teaminviteUc, gs.Config.Server.TimeOut)
 
 	teamv1.RegisterTeamServiceServer(gs.Server, teamHandler)

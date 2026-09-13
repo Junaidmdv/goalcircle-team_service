@@ -11,9 +11,13 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/permission"
 	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
+	staff_invite_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staffinvite"
 	teamrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
+	teamplayerrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teamplayer"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/storage"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/datetime"
@@ -24,6 +28,8 @@ import (
 
 type StaffUsecase interface {
 	AddStaff(context.Context, *AddStaffReq) (*AddStaffRes, error)
+	JoinStaff(ctx context.Context, req *JoinStaffReq) (*JoinStaffRes, error)
+	CompensateJoinStaff(ctx context.Context, req ComponsateJoinStaffReq) error
 	GetStaff(context.Context, *GetStaffReq) (*GetStaffRes, error)
 	UploadStaffImage(context.Context, *UploadStaffImageReq) (*UploadStaffImageRes, error)
 	GetStaffImagePresignedUrl(context.Context, *StaffImagePresignedUrlReq) (*StaffImagePresignedUrlRes, error)
@@ -36,30 +42,42 @@ type StaffUsecase interface {
 }
 
 type staffUsecase struct {
-	teamMemberRepo teammember.TeamMemberRepository
-	staffRepo      staffrepo.StaffRepository
-	teamRepo       teamrepo.TeamRepository
-	date           datetime.DateCalculator
-	objstore       storage.ObjectStorage
-	objcfg         *config.ObjectStorageConfig
-	logger         logger.Logger
+	teamMemberRepo  teammember.TeamMemberRepository
+	staffInviteRepo staff_invite_repo.StaffInviteRepository
+	teamInviteRepo  teaminvite.TeamInviteRepository
+	staffRepo       staffrepo.StaffRepository
+	teamRepo        teamrepo.TeamRepository
+	teamPlayerRepo  teamplayerrepo.TeamPlayerRepository
+	date            datetime.DateCalculator
+	objstore        storage.ObjectStorage
+	objcfg          *config.ObjectStorageConfig
+	logger          logger.Logger
+	codeGenerater   invitation.CodeGenerater
 }
 
 func NewTeamStaffUsecase(tm teammember.TeamMemberRepository,
 	sr staffrepo.StaffRepository,
 	tmrepo teamrepo.TeamRepository,
+	teamInviteRepo teaminvite.TeamInviteRepository,
+	staffInviteRepo staff_invite_repo.StaffInviteRepository,
+	teamplayerRepo teamplayerrepo.TeamPlayerRepository,
 	date datetime.DateCalculator,
 	objst storage.ObjectStorage,
 	cnfg *config.ObjectStorageConfig,
+	code invitation.CodeGenerater,
 	logger logger.Logger) StaffUsecase {
 	return &staffUsecase{
-		teamMemberRepo: tm,
-		staffRepo:      sr,
-		teamRepo:       tmrepo,
-		date:           date,
-		objstore:       objst,
-		objcfg:         cnfg,
-		logger:         logger,
+		teamMemberRepo:  tm,
+		staffRepo:       sr,
+		teamInviteRepo:  teamInviteRepo,
+		staffInviteRepo: staffInviteRepo,
+		teamRepo:        tmrepo,
+		teamPlayerRepo:  teamplayerRepo,
+		date:            date,
+		codeGenerater:   code,
+		objstore:        objst,
+		objcfg:          cnfg,
+		logger:          logger,
 	}
 }
 
@@ -91,16 +109,6 @@ func (su *staffUsecase) AddStaff(ctx context.Context, req *AddStaffReq) (*AddSta
 		)
 	}
 
-	teamMember, err := su.teamMemberRepo.AddTeamMember(ctx, &entity.TeamMember{
-		ID:     uuid.New(),
-		TeamID: teamID,
-		Status: req.TeamMemberStatus,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
 	count, err := su.staffRepo.CountByDesination(ctx, teamID, req.Designation)
 	if err != nil {
 		return nil, err
@@ -110,48 +118,157 @@ func (su *staffUsecase) AddStaff(ctx context.Context, req *AddStaffReq) (*AddSta
 		return nil, err
 	}
 
-	staff, err := su.staffRepo.AddStaff(ctx, &entity.Staff{
+	code, err := su.codeGenerater.GenerateCode(req.TeamID)
+	if err != nil {
+		su.logger.Error("failed generate code", "error", err)
+		return nil, apperror.NewInternalError("failed to generate code", err)
+	}
+
+	invite, err := su.teamInviteRepo.CreateInvitation(ctx, &entity.TeamInvite{
+		ID:            uuid.New(),
+		TeamID:        teamID,
+		InvitedUserID: userID,
+		InviteType:    entity.StaffInvite,
+		Status:        entity.Pending,
+		InviteCode:    code,
+		ExpiresAt:     time.Now().Add(time.Hour * 24 * entity.InvitationTime),
+		CreatedAt:     time.Now(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := su.staffInviteRepo.AddStaffDetails(ctx, &entity.StaffInviteDetails{
 		ID:           uuid.New(),
-		TeamMemberID: teamMember.ID,
+		TeamInviteID: invite.ID,
 		FullName:     req.FullName,
 		Role:         req.Role,
 		Designation:  req.Designation,
-		PhoneNum:     *req.PhoneNum,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	webbytes, err := imageutil.ConvertImageIntoWebpbFormate(req.ImageBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	objectName := fmt.Sprintf("staff/%s/profile.webp", staff.ID)
-
-	key, err := su.objstore.Upload(ctx, su.objcfg.Bucket, objectName, bytes.NewReader(webbytes), int64(len(webbytes)), "image/webp")
-
-	if err != nil {
-		return nil, err
-	}
-
-	if err := su.staffRepo.UpdateImageKey(ctx, staff.ID, key); err != nil {
-		return nil, err
-	}
-
-	presignedUrl, err := su.objstore.GetPresignedURL(ctx, su.objcfg.Bucket, key, su.objcfg.PresignedURLExpiry)
-	if err != nil {
+		PhoneNume:    req.PhoneNum,
+	}); err != nil {
 		return nil, err
 	}
 
 	return &AddStaffRes{
-		StaffID:      staff.ID,
-		TeamMemberID: teamMember.ID,
-		FullName:     staff.FullName,
-		Role:         staff.Role,
-		Designation:  req.Designation,
-		PresignedUrl: presignedUrl,
+		Code:        code,
+		FullName:    req.FullName,
+		Role:        req.Role,
+		Designation: req.Designation,
 	}, nil
+}
+
+func (su *staffUsecase) JoinStaff(ctx context.Context, req *JoinStaffReq) (*JoinStaffRes, error) {
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		su.logger.Error("invalid team id", "error", errors.New("invalid user id from token"))
+		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+
+	exist, err := su.teamPlayerRepo.IsTeamPlayerExist(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if exist {
+		return nil, apperror.NewBadRequestError("user is an active player")
+	}
+
+	staffExist, err := su.staffRepo.IsStaffExistByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if staffExist {
+		return nil, apperror.NewBadRequestError(
+			"user is already registered as staff",
+		)
+	}
+
+	invite, err := su.teamInviteRepo.GetInvitationByCode(ctx, req.Code)
+	if err != nil {
+		return nil, err
+	}
+
+	if time.Now().After(invite.ExpiresAt) {
+		return nil, apperror.NewFailedPreCondition(
+			"invitation code expired",
+		)
+	}
+
+	if invite.Status != entity.Pending {
+		return nil, apperror.NewFailedPreCondition(
+			"invitation code already used",
+		)
+	}
+
+	if err := su.teamInviteRepo.UpdateTeamInvite(
+		ctx,
+		invite.ID,
+		userID,
+		entity.Accepted,
+	); err != nil {
+		return nil, err
+	}
+
+	staffDetail, err := su.staffInviteRepo.GetStaffDetails(ctx, invite.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	teamMember, err := su.teamMemberRepo.AddTeamMember(ctx, &entity.TeamMember{
+		ID:     uuid.New(),
+		TeamID: invite.TeamID,
+		UserID: userID,
+		Role:   entity.TeamMemberStaff,
+		Status: entity.TeamMemberStatusActive,
+	})
+
+	staff, err := su.staffRepo.AddStaff(ctx, &entity.Staff{
+		ID:           uuid.New(),
+		TeamMemberID: teamMember.ID,
+		FullName:     staffDetail.FullName,
+		Role:         staffDetail.Role,
+		Designation:  staffDetail.Designation,
+		PhoneNum:     *staffDetail.PhoneNume,
+		Status:       entity.StaffStatusActive,
+		JoinedAt:     time.Now(),
+	})
+
+	return &JoinStaffRes{
+		ID:           staff.ID,
+		TeamMemberID: teamMember.ID,
+		UserID:       teamMember.UserID,
+		FullName:     staff.FullName,
+		Role:         string(staff.Role),
+		Designatin:   string(staff.Designation),
+		PhoneNum:     staff.PhoneNum,
+		CreatedAT:    staff.CreatedAt,
+	}, nil
+
+}
+
+func (su *staffUsecase) CompensateJoinStaff(ctx context.Context, req ComponsateJoinStaffReq) error {
+
+	if err := su.teamInviteRepo.UpdateTeamInvite(
+		ctx,
+		req.InviteID,
+		uuid.Nil,
+		entity.Pending,
+	); err != nil {
+		return err
+	}
+
+	if err := su.teamMemberRepo.DeleteTeamMemberByID(ctx, req.TeamMemberID); err != nil {
+		return nil
+	}
+
+	if err := su.staffRepo.DeleteStaff(ctx, req.StaffID); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (su *staffUsecase) GetStaff(ctx context.Context, req *GetStaffReq) (*GetStaffRes, error) {
@@ -177,9 +294,8 @@ func (su *staffUsecase) GetStaff(ctx context.Context, req *GetStaffReq) (*GetSta
 		Role:         string(staff.Role),
 		Designation:  string(staff.Designation),
 		PhoneNum:     staff.PhoneNum,
-		Status:       string(staff.TeamMember.Status),
-		JoinedAt:     staff.TeamMember.JoinedAt.Format("2006-01-02 15:04:05"),
-		ReleasedAt:   staff.TeamMember.ReleasedAt.Format("2006-01-02 15:04:05"),
+		Status:       string(staff.Status),
+		JoinedAt:     staff.JoinedAt.Format("2006-01-02 15:04:05"),
 	}, nil
 }
 
@@ -440,7 +556,7 @@ func (su *staffUsecase) ListTeamStaff(ctx context.Context, req *ListTeamStaffReq
 			FullName:     s.FullName,
 			Role:         string(s.Role),
 			Designation:  string(s.Designation),
-			Status:       string(s.TeamMember.Status),
+			Status:       string(s.Status),
 		})
 
 		presignedUrl, err := su.objstore.GetPresignedURL(ctx, su.objcfg.Bucket, *s.ImageKey, su.objcfg.PresignedURLExpiry)
@@ -502,9 +618,8 @@ func (su *staffUsecase) ReleaseStaff(ctx context.Context, req *ReleaseStaffReq) 
 		FullName:     staff.FullName,
 		Role:         string(staff.Role),
 		Designation:  string(staff.Designation),
-		Status:       string(staff.TeamMember.Status),
-		JoinedAt:     staff.TeamMember.JoinedAt.Format("2006-01-02 15:04:05"),
-		ReleasedAt:   staff.TeamMember.ReleasedAt.Format("2006-01-02 15:04:05"),
+		Status:       string(staff.Status),
+		JoinedAt:     staff.JoinedAt.Format("2006-01-02 15:04:05"),
 	}, nil
 
 }

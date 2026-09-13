@@ -3,7 +3,6 @@ package staffrepo
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
@@ -25,6 +24,7 @@ type StaffRepository interface {
 	DeleteStaff(ctx context.Context, staffID uuid.UUID) error
 	GetStaffDesignation(ctx context.Context, teamID, userID uuid.UUID) (entity.StaffDesignation, error)
 	GetStaffByTeamMemberID(ctx context.Context, teamMemberID uuid.UUID) (*entity.Staff, error)
+	IsStaffExistByUserID(ctx context.Context, userID uuid.UUID) (bool, error)
 }
 
 type staffRepository struct {
@@ -148,10 +148,7 @@ func (sr *staffRepository) ListStaff(ctx context.Context, teamID uuid.UUID, deta
 }
 
 func (sr *staffRepository) ReleaseStaff(ctx context.Context, teamID uuid.UUID, staffID uuid.UUID) error {
-	result := sr.db.WithContext(ctx).Model(&entity.Staff{}).Joins("JOIN team_members tm ON staffs.team_member_id=tm.id").Where("staffs.id=? AND tm.team_id=?", staffID, teamID).Updates(map[string]interface{}{
-		"tm.status":      entity.TeamMemberStatusRelease,
-		"tm.released_at": time.Now(),
-	})
+	result := sr.db.WithContext(ctx).Model(&entity.Staff{}).Where("staffs.id=? AND tm.team_id=?", staffID).Updates(map[string]interface{}{})
 
 	if result.Error == nil {
 		sr.logger.Error("database error", "error", result.Error, "method", "repository.Staff.ReleaseStaff")
@@ -189,7 +186,7 @@ func (tm *staffRepository) GetStaffDesignation(ctx context.Context, teamID, user
 		Model(&entity.Staff{}).
 		Select("staffs.designation").
 		Joins("JOIN team_members tm ON staffs.team_member_id=tm.id").
-		Where("tm.user_id =? AND tm.team_id=? AND tm.status=?", userID, teamID, entity.TeamMemberStatusActive).
+		Where("tm.user_id =? AND tm.team_id=? AND tm.status=?", userID, teamID, entity.StaffStatusActive).
 		Take(&result).Error
 
 	if err != nil {
@@ -244,4 +241,25 @@ func (r *staffRepository) UpdateStaffImageURL(
 	}
 
 	return nil
+}
+
+func (r *staffRepository) IsStaffExistByUserID(ctx context.Context, userID uuid.UUID) (bool, error) {
+
+	var count int64
+
+	err := r.db.WithContext(ctx).
+		Model(&entity.Staff{}).
+		Joins("JOIN team_members tm ON staffs.team_member_id = tm.id").
+		Where(
+			"tm.user_id = ? AND staffs.status = ?",
+			userID,
+			entity.StaffStatusActive,
+		).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }

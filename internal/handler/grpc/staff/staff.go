@@ -9,6 +9,7 @@ import (
 	pb "github.com/Junaidmdv/goalcircle-protos/team/v1"
 	teamv1 "github.com/Junaidmdv/goalcircle-protos/team/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
+	teamsaga "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga/team"
 	staffuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/imageutil"
@@ -20,95 +21,90 @@ import (
 )
 
 type StaffHandler struct {
-	teamv1.UnimplementedStaffServiceServer
 	StaffUsecase staffuc.StaffUsecase
 	timeOut      time.Duration
 	validater    *validater.Validater
+	joinsaga     teamsaga.JoinStaffSaga
+	teamv1.UnimplementedStaffServiceServer
 }
 
-func NewStaffHandler(stafuc staffuc.StaffUsecase, timeout time.Duration, validater *validater.Validater) *StaffHandler {
+func NewStaffHandler(stafuc staffuc.StaffUsecase, timeout time.Duration, validater *validater.Validater, jsaga teamsaga.JoinStaffSaga) *StaffHandler {
 	return &StaffHandler{
 		StaffUsecase: stafuc,
 		timeOut:      timeout,
 		validater:    validater,
+		joinsaga:     jsaga,
 	}
 
 }
 
-func (sh *StaffHandler) AddStaff(stream grpc.ClientStreamingServer[pb.AddStaffReq, pb.AddStaffRes]) error {
+func (sh *StaffHandler) AddStaff(ctx context.Context, req *pb.AddStaffReq) (*pb.AddStaffRes, error) {
 
-	c := stream.Context()
-
-	ctx, cancel := context.WithTimeout(c, sh.timeOut)
-	defer cancel()
-
-	var (
-		staffDetails *pb.StaffDetails
-		buffer       bytes.Buffer
-	)
-
-	for {
-		req, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			return status.Errorf(codes.Internal, "failed to receive stream: %v", err)
-		}
-
-		switch data := req.Data.(type) {
-		case *pb.AddStaffReq_Meta:
-			if staffDetails != nil {
-				return status.Error(codes.InvalidArgument, "staff details already sent")
-			}
-			staffDetails = data.Meta
-
-		case *pb.AddStaffReq_Chunks:
-			if staffDetails == nil {
-				return status.Error(codes.InvalidArgument, "player details is missing")
-			}
-			buffer.Write(data.Chunks)
-		}
-	}
-	request := ToCreateStaff(staffDetails)
+	request := ToCreateStaff(req)
 
 	if validationErrs := sh.validater.Validation(request); validationErrs != nil {
 		stWithDetails, err := validater.ValidationError(validationErrs)
 		if err != nil {
-			return status.Error(codes.InvalidArgument, "failed to attach details")
+			return nil, status.Error(codes.InvalidArgument, "failed to attach details")
 		}
-		return stWithDetails.Err()
-	}
-
-	if err := imageutil.ValidateImage(buffer.Bytes(), imageutil.StaffImage); err != nil {
-		return apperror.GRPCStatus(err)
+		return nil, stWithDetails.Err()
 	}
 
 	staff, err := sh.StaffUsecase.AddStaff(ctx, &staffuc.AddStaffReq{
-		TeamID:           request.TeamID,
-		UserID:           request.UserID,
-		FullName:         request.FullName,
-		Role:             request.Role,
-		Designation:      request.Designation,
-		PhoneNum:         request.PhoneNum,
-		TeamMemberStatus: entity.TeamMemberStatusInactive,
-		ImageBytes:       buffer.Bytes(),
+		TeamID:      request.TeamID,
+		UserID:      request.UserID,
+		FullName:    request.FullName,
+		Role:        request.Role,
+		Designation: request.Designation,
+		PhoneNum:    request.PhoneNum,
 	})
 
 	if err != nil {
-		return apperror.GRPCStatus(err)
+		return nil, apperror.GRPCStatus(err)
 	}
 
-	return stream.SendAndClose(&pb.AddStaffRes{
-		StaffId:      staff.StaffID.String(),
-		TeamMemberId: staff.TeamMemberID.String(),
-		FullName:     staff.FullName,
-		Role:         string(staff.Role),
-		Designatin:   string(staff.Designation),
-		ImageUrl:     staff.PresignedUrl,
-	})
+	return &pb.AddStaffRes{
+		Code:        staff.Code,
+		FullName:    staff.FullName,
+		Role:        string(staff.Role),
+		Designation: string(staff.Designation),
+	}, nil
 
+}
+
+func (sh *StaffHandler) JoinStaff(ctx context.Context, req *pb.JoinStaffReq) (*pb.JoinStaffRes, error) {
+	res,err:=sh.joinsaga.RegisterStaff(ctx, &teamsaga.JoinStaffSagaState{
+		UserID:       req.UserId,
+		Code:         req.Code,
+		Role:         entity.TEAM,
+		RefreshToken: req.RefreshToken,
+	}) 
+
+	if err != nil{
+		return nil,apperror.GRPCStatus(err)
+	} 
+
+	return  &pb.JoinStaffRes{
+		Staff: &teamv1.JoinStaffRes_StaffDetails{
+			StaffId: res.StaffRes.ID.String(), 
+			TeamMemberId: res.StaffRes.TeamMemberID.String(), 
+			UserId: res.StaffRes.UserID.String(), 
+			FullName: res.StaffRes.FullName, 
+			Role: res.StaffRes.Role, 
+			Designation: res.StaffRes.Designatin,
+			CreatedAt: timestamppb.New(res.StaffRes.CreatedAT),
+		}, 
+		User: &teamv1.JoinStaffRes_UserResponse{
+			SessionId: res.AddUserRes.SessionID, 
+			UserId: res.AddUserRes.UserID, 
+			Email: res.AddUserRes.Email, 
+			AccessToken: res.AddUserRes.AccessToken, 
+			AccessTokenExpiry: timestamppb.New(res.AddUserRes.AccessTokenExpiry), 
+			RefreshToken: res.AddUserRes.RefreshToken,  
+			RefreshTokenExpiry: timestamppb.New(res.AddUserRes.RefreshTokenExpiry),
+
+		}, 
+	},nil
 }
 
 func (tm *StaffHandler) ListTeamStaff(ctx context.Context, input *pb.ListTeamStaffReq) (*pb.ListTeamStaffRes, error) {
@@ -217,7 +213,6 @@ func (sh *StaffHandler) GetStaff(ctx context.Context, input *pb.GetStaffReq) (*p
 		CreatedAt:    timestamppb.New(res.CreatedAt),
 		Status:       res.Status,
 		JoinedAt:     res.JoinedAt,
-		ReleasedAt:   &res.ReleasedAt,
 	}, nil
 }
 

@@ -80,7 +80,7 @@ func MapProtoStaffRole(role entity.StaffRole) teamv1.StaffRole {
 	return teamv1.StaffRole_STAFF_ROLE_UNSPECIFIED
 }
 
-func ToCreateStaff(req *pb.StaffDetails) *AddStaffReq {
+func ToCreateStaff(req *pb.AddStaffReq) *AddStaffReq {
 	role := MapStaffRole(req.Role)
 	desig := MapStaffDesignation(req.Designation)
 

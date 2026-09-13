@@ -8,24 +8,42 @@ import (
 )
 
 type AddStaffReq struct {
-	UserID           string
-	TeamID           string
-	FullName         string
-	PhoneNum         *string
-	Role             entity.StaffRole
-	Designation      entity.StaffDesignation
-	TeamMemberStatus entity.TeamMemberStatus
-	ImageBytes       []byte
+	UserID      string
+	TeamID      string
+	FullName    string
+	PhoneNum    *string
+	Role        entity.StaffRole
+	Designation entity.StaffDesignation
 }
 
 type AddStaffRes struct {
-	StaffID      uuid.UUID
+	Code        string
+	FullName    string
+	Role        entity.StaffRole
+	Designation entity.StaffDesignation
+}
+
+type JoinStaffReq struct {
+	UserID string
+	Code   string
+}
+
+type JoinStaffRes struct {
+	ID           uuid.UUID
+	InviteID     uuid.UUID
 	TeamMemberID uuid.UUID
+	UserID       uuid.UUID
 	FullName     string
-	Age          int32
-	Designation  entity.StaffDesignation
-	Role         entity.StaffRole
-	PresignedUrl string
+	Role         string
+	Designatin   string
+	PhoneNum     string
+	CreatedAT    time.Time
+}
+
+type ComponsateJoinStaffReq struct {
+	StaffID    uuid.UUID
+	TeamMemberID uuid.UUID 
+	InviteID     uuid.UUID
 }
 
 type UploadStaffImageReq struct {
@@ -151,7 +169,6 @@ type GetStaffRes struct {
 	CreatedAt    time.Time
 	Status       string
 	JoinedAt     string
-	ReleasedAt   string
 }
 
 type RegisterTeamMemberReq struct {

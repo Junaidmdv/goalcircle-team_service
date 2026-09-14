@@ -11,6 +11,8 @@ func (db *postgresDB) Migration() error {
 		&entity.Player{},
 		&entity.TeamInvite{},
 		&entity.Staff{},
+		&entity.StaffInviteDetails{}, 
+		&entity.TeamPlayer{},
 	); err != nil {
 		return err
 	}

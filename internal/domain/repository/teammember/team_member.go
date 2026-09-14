@@ -21,10 +21,11 @@ type TeamMemberRepository interface {
 	GetActiveTeamMemberByUserID(context.Context, uuid.UUID) (*entity.TeamMember, error)
 	GetTeamMemberByID(context.Context, uuid.UUID) (*entity.TeamMember, error)
 	HasUnreleasedMembership(ctx context.Context, userID uuid.UUID) (bool, error)
-	UpdateStatus(ctx context.Context, teamMemberID uuid.UUID, status entity.TeamMemberStatus) error
+	UpdateStatus(ctx context.Context, playerID uuid.UUID, status entity.TeamMemberStatus) error
 	ReleaseMember(ctx context.Context, teamID, memberID uuid.UUID) error
 	GetTeamMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) (*entity.TeamMember, error)
 	UpdateLeftAt(ctx context.Context, teamMemberId uuid.UUID) error
+	DeleteTeamMemberByID(ctx context.Context, teamMemberID uuid.UUID) error
 }
 
 type teamMemberRepository struct {
@@ -77,10 +78,6 @@ func (tm *teamMemberRepository) UpdateUserID(ctx context.Context, teamMemberID u
 	}
 	return nil
 }
-
-
-
-
 
 func (tr *teamMemberRepository) DeleteTeamMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error {
 
@@ -141,7 +138,7 @@ func (tmr *teamMemberRepository) HasUnreleasedMembership(ctx context.Context, us
 
 	err := tmr.db.WithContext(ctx).
 		Model(&entity.TeamMember{}).
-		Where("user_id = ?  AND status != ?", userID, entity.TeamMemberStatusRelease).
+		Where("user_id = ?  AND status != ?", userID, entity.TeamMemberStatusLeft).
 		Count(&count).Error
 
 	if err != nil {
@@ -151,9 +148,9 @@ func (tmr *teamMemberRepository) HasUnreleasedMembership(ctx context.Context, us
 	return count > 0, nil
 }
 
-func (tr *teamMemberRepository) UpdateStatus(ctx context.Context, teamMemberID uuid.UUID, status entity.TeamMemberStatus) error {
+func (tr *teamMemberRepository) UpdateStatus(ctx context.Context, playerID uuid.UUID, status entity.TeamMemberStatus) error {
 
-	result := tr.db.WithContext(ctx).Model(&entity.TeamMember{}).Where("id=?", teamMemberID).Update("status", status)
+	result := tr.db.WithContext(ctx).Model(&entity.TeamMember{}).Where("id=?", playerID).Update("status", status)
 
 	if result.Error != nil {
 		return apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
@@ -176,8 +173,7 @@ func (tr *teamMemberRepository) ReleaseMember(
 		Model(&entity.TeamMember{}).
 		Where("id = ? AND team_id=?", teamID, memberID).
 		Updates(map[string]interface{}{
-			"status":      entity.TeamMemberStatusRelease,
-			"released_at": now,
+			"status":      entity.TeamMemberStatusLeft,
 			"updated_at":  now,
 		})
 
@@ -194,7 +190,7 @@ func (tr *teamMemberRepository) ReleaseMember(
 
 func (tr *teamMemberRepository) IsTeamMemberReleased(ctx context.Context, teamMemberID uuid.UUID) {
 
-	tr.db.WithContext(ctx).Where("id=? AND status=?", teamMemberID, entity.TeamMemberStatusRelease)
+	tr.db.WithContext(ctx).Where("id=? AND status=?", teamMemberID, entity.TeamMemberStatusLeft)
 }
 
 func (tr *teamMemberRepository) GetTeamMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) (*entity.TeamMember, error) {
@@ -220,5 +216,22 @@ func (tr *teamMemberRepository) UpdateLeftAt(ctx context.Context, teamMemberID u
 	if result.RowsAffected == 0 {
 		return apperror.NewNotFoundError("failed update team member")
 	}
+	return nil
+}
+
+func (r *teamMemberRepository) DeleteTeamMemberByID(
+	ctx context.Context,
+	teamMemberID uuid.UUID,
+) error {
+
+	err := r.db.WithContext(ctx).
+		Where("id = ?", teamMemberID).
+		Delete(&entity.TeamMember{}).
+		Error
+
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

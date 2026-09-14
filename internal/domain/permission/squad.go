@@ -12,6 +12,7 @@ var SquadPermission = map[entity.StaffDesignation]map[Permission]struct{}{
 		PermissionCreateInvite:       {},
 		PermissionAppointCaptain:     {},
 		PermissionAppointViceCaptain: {},
+		PermissionReleasePlayer:      {},
 	},
 
 	entity.StaffDesignationManager: {
@@ -22,6 +23,7 @@ var SquadPermission = map[entity.StaffDesignation]map[Permission]struct{}{
 		PermissionCreateInvite:       {},
 		PermissionAppointCaptain:     {},
 		PermissionAppointViceCaptain: {},
+		PermissionReleasePlayer:      {},
 	},
 
 	entity.StaffDesignationHeadCoach: {
@@ -30,10 +32,7 @@ var SquadPermission = map[entity.StaffDesignation]map[Permission]struct{}{
 	},
 
 	entity.StaffDesignationAssistantCoach: {},
-
 }
-
-
 
 func HasPermission(desig entity.StaffDesignation, perm Permission) bool {
 	permite, ok := SquadPermission[desig]

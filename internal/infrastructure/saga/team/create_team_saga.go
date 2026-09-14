@@ -69,7 +69,6 @@ func (ts *teamSaga) CreateTeamSaga(ctx context.Context, req *TeamSagaState) (*Te
 					OwnerName:        req.FullName,
 					Role:             entity.StaffRoleManagement,
 					Designation:      entity.StaffDesignationOwner,
-					TeamMemberStatus: entity.TeamMemberStatusActive,
 				})
 
 				if err != nil {

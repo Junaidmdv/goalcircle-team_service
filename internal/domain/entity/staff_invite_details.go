@@ -13,7 +13,9 @@ type StaffInviteDetails struct {
 	Role         StaffRole
 	Designation  StaffDesignation
 	PhoneNume    *string
-	ImageKey     *string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	TeamInvite   TeamInvite `gorm:"foreignKey:TeamInviteID;references:ID;constraint:OnDelete:CASCADE;"`
 }
+
+

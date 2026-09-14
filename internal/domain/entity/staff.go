@@ -35,6 +35,14 @@ const (
 	StaffRoleUnspecified StaffRole = "UNSPECIFIED"
 )
 
+type StaffStatus string
+
+const (
+	StaffStatusActive     StaffStatus = "active"
+	StaffStatusInactive   StaffStatus = "inactive"
+	StaffStatusTerminated StaffStatus = "terminated"
+)
+
 type Staff struct {
 	ID           uuid.UUID `gorm:"type:uuid;primaryKey"`
 	TeamMemberID uuid.UUID `gorm:"type:uuid;uniqueIndex"`
@@ -43,7 +51,9 @@ type Staff struct {
 	Designation  StaffDesignation
 	PhoneNum     string
 	ImageKey     *string
+	Status       StaffStatus
+	JoinedAt     time.Time
 	CreatedAt    time.Time
-	UpdatedAt    time.Time   
+	UpdatedAt    time.Time
 	TeamMember   TeamMember `gorm:"foreignKey:TeamMemberID;references:ID;constraint:OnDelete:CASCADE;"`
 }

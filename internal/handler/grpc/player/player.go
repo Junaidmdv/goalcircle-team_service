@@ -7,7 +7,8 @@ import (
 	"time"
 
 	pb "github.com/Junaidmdv/goalcircle-protos/team/v1"
-	"github.com/Junaidmdv/goalcircle-team_service/internal/usecase/player"
+	playerUsecase "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/player"
+	playeruc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/player"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/imageutil"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
@@ -19,14 +20,14 @@ import (
 )
 
 type PlayerHandler struct {
-	playerUc  player.PlayerUsecase
+	playerUc  playerUsecase.PlayerUsecase
 	logger    logger.Logger
 	timeout   *time.Duration
 	validater *validater.Validater
 	pb.UnimplementedPlayerServiceServer
 }
 
-func NewPlayerHandler(puc player.PlayerUsecase, logger logger.Logger, timeout *time.Duration, validater *validater.Validater) *PlayerHandler {
+func NewPlayerHandler(puc playeruc.PlayerUsecase, logger logger.Logger, timeout *time.Duration, validater *validater.Validater) *PlayerHandler {
 	return &PlayerHandler{
 		playerUc:  puc,
 		logger:    logger,
@@ -75,7 +76,10 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 		return apperror.GRPCStatus(err)
 	}
 
-	data := ToAddPlayerReq(playerDetails)
+	data, err := ToAddPlayerReq(playerDetails)
+	if err != nil {
+		return apperror.GRPCStatus(err)
+	}
 
 	if validationError := ph.validater.Validation(data); validationError != nil {
 		stWithDetails, err := validater.ValidationError(validationError)
@@ -85,40 +89,24 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 		return stWithDetails.Err()
 	}
 
-	playr, err := ph.playerUc.AddNewPlayer(context, &player.AddPlayerReq{
-		TeamID:       data.TeamID,
-		UserID:       data.UserID,
-		FullName:     data.FullName,
-		DOB:          data.DateOfBirth,
-		JerseyNumber: data.JerseyNumber,
-		Postion:      data.Position,
-		Height:       data.Height,
-		Weight:       data.Weight,
-		ImageBytes:   buffer.Bytes(),
-	})
+	playr, err := ph.playerUc.AddNewPlayer(context, &playerUsecase.AddPlayerReq{})
 
 	if err != nil {
 		return apperror.GRPCStatus(err)
 	}
 
-	position := MapProtoPlayerPosition(playr.Position)
-	status := MapProtoPlayerStatus(playr.Status)
-
 	return stream.SendAndClose(&pb.AddPlayerRes{
-		PlayerId:       playr.ID.String(),
-		TeamMemberId:   playr.TeamMemberID.String(),
-		FullName:       playr.FullName,
-		JerseyNumber:   playr.JerseyNumber,
-		PlayerStatus:   status.String(),
-		PlayerPosition: position.String(),
-		PresignedUrl:   playr.PresignedUrl,
+		PlayerId: playr.ID.String(),
 	})
 }
 
 func (ph *PlayerHandler) UpdatePlayerDetails(ctx context.Context, input *pb.UpdatePlayerRequest) (*pb.UpdatePlayersResponse, error) {
 	context, cancel := context.WithTimeout(ctx, *ph.timeout)
 	defer cancel()
-	data := ToUpdatePlayerReq(input)
+	data, err := ToUpdatePlayerReq(input)
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
 
 	if validationError := ph.validater.Validation(data); validationError != nil {
 		stWithDetails, err := validater.ValidationError(validationError)
@@ -128,17 +116,14 @@ func (ph *PlayerHandler) UpdatePlayerDetails(ctx context.Context, input *pb.Upda
 		return nil, stWithDetails.Err()
 	}
 
-	res, err := ph.playerUc.UpdatePlayerDetails(context, &player.UpdatePlayerReq{
-		UserID:       data.UserID,
-		PlayerID:     data.PlayerID,
-		TeamID:       data.TeamID,
-		FullName:     data.FullName,
-		DateOfBirth:  data.DateOfBirth,
-		JerseyNumber: data.JerseyNumber,
-		Position:     data.Position,
-		Height:       data.Height,
-		Weight:       data.Weight,
-		Status:       data.Status,
+	res, err := ph.playerUc.UpdatePlayerDetails(context, &playeruc.UpdatePlayerReq{
+		PlayerID:      data.PlayerID,
+		UserID:        data.UserID,
+		FullName:      data.FullName,
+		DOB:           data.DateOfBirth,
+		Nationality:   data.Nationality,
+		PreferredFoot: data.PreferredFoot,
+		Position:      data.Position,
 	})
 
 	if err != nil {
@@ -146,63 +131,15 @@ func (ph *PlayerHandler) UpdatePlayerDetails(ctx context.Context, input *pb.Upda
 	}
 
 	return &pb.UpdatePlayersResponse{
-		PlayerId:     res.PlayerID.String(),
-		TeamMemberId: res.TeamMemberID.String(),
-		FullName:     res.FullName,
-		DateOfBirth:  timestamppb.New(res.DateOfBirth),
-		JerseyNumber: res.JerseyNumber,
-		Position:     string(res.Position),
-		Height:       res.Height,
-		Weight:       res.Weight,
-		Status:       string(res.Status),
+		PlayerId:      res.PlayerID.String(),
+		FullName:      res.FullName,
+		DateOfBirth:   timestamppb.New(res.DOB),
+		Position:      string(res.Position),
+		Status:        string(res.Status),
+		PreferredFoot: string(res.PreferredFoot),
 	}, nil
 }
 
-func (ph *PlayerHandler) ListTeamPlayer(ctx context.Context, input *pb.ListTeamPlayerReq) (*pb.ListTeamPlayerRes, error) {
-	context, cancel := context.WithTimeout(ctx, *ph.timeout)
-	defer cancel()
-
-	status := MapPlayerStatus(*input.PlayerStatus)
-	position := MapPlayerPosition(*input.Position)
-
-	players, Paginates, err := ph.playerUc.ListTeamPlayers(context, &player.ListTeamPlayersReq{
-		TeamID:       input.TeamId,
-		Page:         input.Page,
-		Limit:        input.Limit,
-		PlayerStatus: status,
-		Position:     position,
-		Search:       *input.Search,
-	})
-	if err != nil {
-		return nil, apperror.GRPCStatus(err)
-	}
-
-	var pbPlayers []*pb.PlayerList
-
-	for _, player := range players {
-
-		pbPlayers = append(pbPlayers, &pb.PlayerList{
-			PlayerId:     player.ID.String(),
-			TeamMemberId: player.TeamMemberID.String(),
-			FullName:     player.FullName,
-			JerseyNumber: player.JerseyNumber,
-			Position:     string(player.Position),
-			ImageUrl:     player.ImageUrl,
-		})
-	}
-
-	paginateDetails := &pb.PaginationDetails{
-		TotalPage: int32(Paginates.TotalPage),
-		Limit:     Paginates.Limit,
-		TotalItem: Paginates.Total,
-		Page:      Paginates.Page,
-	}
-
-	return &pb.ListTeamPlayerRes{
-		Players:  pbPlayers,
-		Paginate: paginateDetails,
-	}, nil
-}
 
 func (ph *PlayerHandler) GetPlayer(ctx context.Context, input *pb.GetPlayerReq) (*pb.GetPlayerRes, error) {
 	context, cancel := context.WithTimeout(ctx, *ph.timeout)
@@ -218,57 +155,29 @@ func (ph *PlayerHandler) GetPlayer(ctx context.Context, input *pb.GetPlayerReq) 
 		return nil, stWithDetails.Err()
 	}
 
-	playerRes, err := ph.playerUc.GetPlayer(context, &player.GetPlayerReq{
+	playerRes, err := ph.playerUc.GetPlayer(context, &playeruc.GetPlayerReq{
 		PlayerID: data.PlayerID,
 	})
 	if err != nil {
 		return nil, apperror.GRPCStatus(err)
 	}
 
-	playerPosition := MapProtoPlayerPosition(playerRes.Position)
-	playerStatus := MapProtoPlayerStatus(playerRes.Status)
-
 	return &pb.GetPlayerRes{
-		PlayerId:       playerRes.PlayerID.String(),
-		TeamMemberId:   playerRes.TeamMemberID.String(),
-		FullName:       playerRes.FullName,
-		Dob:            timestamppb.New(playerRes.DateOfBirth),
-		JerseyNumber:   playerRes.JerseyNumber,
-		PlayerPosition: playerPosition,
-		Height:         playerRes.Height,
-		Weight:         playerRes.Weight,
-		PlayerStatus:   playerStatus,
-		CreatedAt:      timestamppb.New(playerRes.CreatedAt),
+		PlayerId:      playerRes.PlayerID.String(),
+		FullName:      playerRes.FullName,
+		DateOfBirth:   timestamppb.New(playerRes.DateOfBirth),
+		Position:      string(playerRes.Position),
+		PreferredFoot: string(playerRes.PreferedFoot),
+		Nationality:   playerRes.Nationality,
+		Status:        string(playerRes.Status),
+		CreatedAt:     timestamppb.New(playerRes.CreatedAt),
 	}, nil
 }
 
-func (ph *PlayerHandler) ReleasePlayer(ctx context.Context, input *pb.ReleasePlayerReq) (*pb.ReleasePlayerRes, error) {
-	res, err := ph.playerUc.ReleasePlayer(ctx, &player.ReleasePlayerReq{
-		UserID:   input.UserId,
-		TeamID:   input.TeamId,
-		PlayerID: input.PlayerId,
-	})
-	if err != nil {
-		return nil, apperror.GRPCStatus(err)
-	}
 
-	position := MapProtoPlayerPosition(res.Position)
-	status := MapProtoPlayerStatus(res.Status)
-	return &pb.ReleasePlayerRes{
-		Id:           res.ID.String(),
-		TeamMemberId: res.TeamMemberID.String(),
-		FullName:     res.FullName,
-		JerseyNumber: res.JerseyNumber,
-		Position:     position,
-		Status:       status,
-		ReleasedAt:   timestamppb.New(res.ReleasedAt),
-		JoinedAt:     timestamppb.New(res.JoinedAt),
-	}, nil
-}
 
 func (ph *PlayerHandler) UpdatePlayerImage(stream grpc.ClientStreamingServer[pb.UpdatePlayerImageReq, pb.UpdatePlayerImageRes]) error {
 	ctx := stream.Context()
-
 	ctx, cancel := context.WithTimeout(ctx, *ph.timeout)
 	defer cancel()
 
@@ -304,7 +213,7 @@ func (ph *PlayerHandler) UpdatePlayerImage(stream grpc.ClientStreamingServer[pb.
 		return apperror.GRPCStatus(err)
 	}
 
-	res, err := ph.playerUc.UpdateImage(ctx, &player.UpdatePlayerImageReq{
+	res, err := ph.playerUc.UpdateImage(ctx, &playeruc.UpdatePlayerImageReq{
 		UserID:    metadata.UserId,
 		TeamID:    metadata.TeamId,
 		PlayerID:  metadata.PlayerId,
@@ -323,7 +232,7 @@ func (ph *PlayerHandler) GetPlayerPresignedUrl(ctx context.Context, req *pb.GetP
 	ctx, cancel := context.WithTimeout(ctx, *ph.timeout)
 	defer cancel()
 
-	res, err := ph.playerUc.GetPlayerPresignedUrl(ctx, &player.GetPlayerPresignedUrlReq{
+	res, err := ph.playerUc.GetPlayerPresignedUrl(ctx, &playeruc.GetPlayerPresignedUrlReq{
 		PlayerID: req.PlayerId,
 		TeamID:   req.TeamId,
 	})

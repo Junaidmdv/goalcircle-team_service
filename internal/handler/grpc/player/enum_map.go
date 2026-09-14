@@ -1,90 +1,62 @@
 package player
 
 import (
-	teamv1 "github.com/Junaidmdv/goalcircle-protos/team/v1"
+	"errors"
+
+	teampb "github.com/Junaidmdv/goalcircle-protos/team/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 )
 
-var protoToDomainPlayerPosition = map[teamv1.PlayerPosition]entity.PlayerPosition{
-	teamv1.PlayerPosition_PLAYER_POSITION_UNSPECIFIED: entity.PositionUnspecified,
+// func toPlayerStatus(status teampb.PlayerStatus) (entity.PlayerStatus, error) {
+// 	switch status {
+// 	case teampb.PlayerStatus_PLAYER_STATUS_ACTIVE:
+// 		return entity.PlayerStatusActive, nil
 
-	teamv1.PlayerPosition_PLAYER_POSITION_GK:  entity.PositionGK,
-	teamv1.PlayerPosition_PLAYER_POSITION_CB:  entity.PositionCB,
-	teamv1.PlayerPosition_PLAYER_POSITION_LB:  entity.PositionLB,
-	teamv1.PlayerPosition_PLAYER_POSITION_RB:  entity.PositionRB,
-	teamv1.PlayerPosition_PLAYER_POSITION_LWB: entity.PositionLWB,
-	teamv1.PlayerPosition_PLAYER_POSITION_RWB: entity.PositionRWB,
+// 	case teampb.PlayerStatus_PLAYER_STATUS_INACTIVE:
+// 		return entity.PlayerStatusInactive, nil
 
-	teamv1.PlayerPosition_PLAYER_POSITION_CDM: entity.PositionCDM,
-	teamv1.PlayerPosition_PLAYER_POSITION_CM:  entity.PositionCM,
-	teamv1.PlayerPosition_PLAYER_POSITION_CAM: entity.PositionCAM,
-	teamv1.PlayerPosition_PLAYER_POSITION_RM:  entity.PositionRM,
-	teamv1.PlayerPosition_PLAYER_POSITION_LM:  entity.PositionLM,
+// 	case teampb.PlayerStatus_PLAYER_STATUS_SUSPENDED:
+// 		return entity.PlayerStatusSuspended, nil
 
-	teamv1.PlayerPosition_PLAYER_POSITION_CF: entity.PositionCF,
-	teamv1.PlayerPosition_PLAYER_POSITION_LW: entity.PositionLW,
-	teamv1.PlayerPosition_PLAYER_POSITION_RW: entity.PositionRW,
-	teamv1.PlayerPosition_PLAYER_POSITION_ST: entity.PositionST,
-}
+// 	case teampb.PlayerStatus_PLAYER_STATUS_LEFT:
+// 		return entity.PlayerStatusLeft, nil
 
-var domainToProtoPlayerPosition = map[entity.PlayerPosition]teamv1.PlayerPosition{
-	entity.PositionUnspecified: teamv1.PlayerPosition_PLAYER_POSITION_UNSPECIFIED,
+// 	default:
+// 		return "", errors.New("invalid player status")
+// 	}
+// }
 
-	entity.PositionGK:  teamv1.PlayerPosition_PLAYER_POSITION_GK,
-	entity.PositionCB:  teamv1.PlayerPosition_PLAYER_POSITION_CB,
-	entity.PositionLB:  teamv1.PlayerPosition_PLAYER_POSITION_LB,
-	entity.PositionRB:  teamv1.PlayerPosition_PLAYER_POSITION_RB,
-	entity.PositionLWB: teamv1.PlayerPosition_PLAYER_POSITION_LWB,
-	entity.PositionRWB: teamv1.PlayerPosition_PLAYER_POSITION_RWB,
+func toPlayerPosition(position teampb.PlayerPosition) (entity.PlayerPosition, error) {
+	switch position {
+	case teampb.PlayerPosition_PLAYER_POSITION_GOALKEEPER:
+		return entity.PlayerPositionGoalkeeper, nil
 
-	entity.PositionCDM: teamv1.PlayerPosition_PLAYER_POSITION_CDM,
-	entity.PositionCM:  teamv1.PlayerPosition_PLAYER_POSITION_CM,
-	entity.PositionCAM: teamv1.PlayerPosition_PLAYER_POSITION_CAM,
-	entity.PositionRM:  teamv1.PlayerPosition_PLAYER_POSITION_RM,
-	entity.PositionLM:  teamv1.PlayerPosition_PLAYER_POSITION_LM,
+	case teampb.PlayerPosition_PLAYER_POSITION_DEFENDER:
+		return entity.PlayerPositionDefender, nil
 
-	entity.PositionCF: teamv1.PlayerPosition_PLAYER_POSITION_CF,
-	entity.PositionLW: teamv1.PlayerPosition_PLAYER_POSITION_LW,
-	entity.PositionRW: teamv1.PlayerPosition_PLAYER_POSITION_RW,
-	entity.PositionST: teamv1.PlayerPosition_PLAYER_POSITION_ST,
-}
+	case teampb.PlayerPosition_PLAYER_POSITION_MIDFIELDER:
+		return entity.PlayerPositionMidfielder, nil
 
-func MapPlayerPosition(position teamv1.PlayerPosition) entity.PlayerPosition {
-	if p, ok := protoToDomainPlayerPosition[position]; ok {
-		return p
+	case teampb.PlayerPosition_PLAYER_POSITION_FORWARD:
+		return entity.PlayerPositionForward, nil
+
+	default:
+		return "", errors.New("invalid player position")
 	}
-	return entity.PositionUnspecified
 }
 
-func MapProtoPlayerPosition(position entity.PlayerPosition) teamv1.PlayerPosition {
-	if p, ok := domainToProtoPlayerPosition[position]; ok {
-		return p
+func toPreferredFoot(foot teampb.PreferredFoot) (entity.PreferredFoot, error) {
+	switch foot {
+	case teampb.PreferredFoot_PREFERRED_FOOT_LEFT:
+		return entity.PreferredFootLeft, nil
+
+	case teampb.PreferredFoot_PREFERRED_FOOT_RIGHT:
+		return entity.PreferredFootRight, nil
+
+	case teampb.PreferredFoot_PREFERRED_FOOT_BOTH:
+		return entity.PreferredFootBoth, nil
+
+	default:
+		return "", errors.New("invalid preferred foot")
 	}
-	return teamv1.PlayerPosition_PLAYER_POSITION_UNSPECIFIED
-}
-
-var protoToDomainPlayerStatus = map[teamv1.PlayerStatus]entity.PlayerStatus{
-	teamv1.PlayerStatus_STATUS_ACTIVE:      entity.PlayerStatusActive,
-	teamv1.PlayerStatus_STATUS_INACTIVE:    entity.PlayerStatusInjured,
-	teamv1.PlayerStatus_STATUS_SUSPENDED:   entity.PlayerStatusSuspended,
-}
-
-var domainToProtoPlayerStatus = map[entity.PlayerStatus]teamv1.PlayerStatus{
-	entity.PlayerStatusActive:              teamv1.PlayerStatus_STATUS_ACTIVE,
-	entity.PlayerStatusInjured:             teamv1.PlayerStatus_STATUS_INACTIVE,
-	entity.PlayerStatusSuspended:           teamv1.PlayerStatus_STATUS_SUSPENDED,
-}
-
-func MapPlayerStatus(status teamv1.PlayerStatus) entity.PlayerStatus {
-	if s, ok := protoToDomainPlayerStatus[status]; ok {
-		return s
-	}
-	return entity.PlayerStatusInvalid
-}
-
-func MapProtoPlayerStatus(status entity.PlayerStatus) teamv1.PlayerStatus {
-	if s, ok := domainToProtoPlayerStatus[status]; ok {
-		return s
-	}
-	return teamv1.PlayerStatus_STATUS_UNSPECIFIED
 }

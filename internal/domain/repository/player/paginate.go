@@ -6,12 +6,6 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetTeamPlayers(teamID uuid.UUID) func(*gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("tm.team_id=?", teamID)
-	}
-}
-
 func filterByPlayerStatus(status entity.PlayerStatus) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		if status == entity.PlayerStatusInvalid {
@@ -23,7 +17,7 @@ func filterByPlayerStatus(status entity.PlayerStatus) func(*gorm.DB) *gorm.DB {
 
 func filterByPosition(position entity.PlayerPosition) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
-		if position == entity.PositionUnspecified {
+		if position == entity.PlayerPositionUnspecified {
 			return db
 		}
 		return db.Where("players.position=?", position)

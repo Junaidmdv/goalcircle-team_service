@@ -8,14 +8,12 @@ import (
 )
 
 type AddPlayerReq struct {
-	TeamID       string                `json:"team_id" validate:"required"`
-	UserID       string                `json:"user_id" validate:"required"`
-	FullName     string                `json:"full_name" validate:"required"`
-	DateOfBirth  time.Time             `json:"dob" validate:"required"`
-	JerseyNumber int32                 `json:"jersey_number" validate:"required"`
-	Position     entity.PlayerPosition `json:"player_position" validate:"required,player-position"`
-	Height       float32               `json:"height" validate:"required"`
-	Weight       float32               `json:"weight" validate:"required"`
+	UserID        string                `json:"user_id" validate:"required"`
+	FullName      string                `json:"full_name" validate:"required"`
+	DateOfBirth   time.Time             `json:"dob" validate:"required"`
+	Position      entity.PlayerPosition `json:"player_position" validate:"required,player-position"`
+	PreferredFoot entity.PreferredFoot  `json:"preferred_foot" validate:"required"`
+	Nationality   string                `json:"nationality" validate:"required,len=2"`
 }
 
 type AddPlayerRes struct {
@@ -28,16 +26,14 @@ type AddPlayerRes struct {
 }
 
 type UpdatePlayerReq struct {
-	UserID       string                 `json:"user_id" validate:"required"`
-	TeamID       string                 `json:"team_id" validate:"required"`
-	PlayerID     string                 `json:"player_id" validate:"required"`
-	FullName     *string                `json:"full_name,omitempty" validate:"omitempty,min=2,max=100"`
-	DateOfBirth  *time.Time             `json:"date_of_birth,omitempty"`
-	JerseyNumber *int32                 `json:"jersey_number,omitempty" validate:"omitempty,min=1,max=99"`
-	Position     *entity.PlayerPosition `json:"position,omitempty"`
-	Height       *float32               `json:"height,omitempty" validate:"omitempty,gt=0"`
-	Weight       *float32               `json:"weight,omitempty" validate:"omitempty,gt=0"`
-	Status       *entity.PlayerStatus   `json:"status,omitempty" validate:"omitempty,player-status"`
+	UserID        string                 `json:"user_id" validate:"required"`
+	TeamID        string                 `json:"team_id" validate:"required"`
+	PlayerID      string                 `json:"player_id" validate:"required"`
+	FullName      *string                `json:"full_name,omitempty" validate:"omitempty,min=2,max=100"`
+	DateOfBirth   *time.Time             `json:"date_of_birth,omitempty"`
+	Position      *entity.PlayerPosition `json:"player_position" validate:"omitempty,player-position"`
+	PreferredFoot *entity.PreferredFoot  `json:"preferred_foot" validate:"omitempty"`
+	Nationality   *string                `json:"nationality" validate:"omitempty,len=2"`
 }
 
 type GetPlayerReq struct {

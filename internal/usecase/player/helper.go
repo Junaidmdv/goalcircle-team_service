@@ -1,23 +1,23 @@
-package player
+package playeruc
 
-import (
-	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
-	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
-)
+// import (
+// 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
+// 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
+// )
 
-func GetTeamMemberStatusFromPlayerStatus(
-	status entity.PlayerStatus,
-) ( entity.TeamMemberStatus,error) {
+// func GetTeamMemberStatusFromPlayerStatus(
+// 	status entity.PlayerStatus,
+// ) ( entity.TeamMemberStatus,error) {
 
-	switch status {
-	case entity.PlayerStatusActive:
-		return  entity.TeamMemberStatusActive,nil
+// 	switch status {
+// 	case entity.PlayerStatusActive:
+// 		return  entity.TeamMemberStatusActive,nil
 
-	case entity.PlayerStatusInjured,
-		entity.PlayerStatusSuspended:
-		return entity.TeamMemberStatusInactive,nil
+// 	case entity.PlayerStatusInjured,
+// 		entity.PlayerStatusSuspended:
+// 		return entity.TeamMemberStatusInactive,nil
 
-	default:
-		return "",apperror.NewInvalidArgumentError("invalid player status")
-	}
-}
+// 	default:
+// 		return "",apperror.NewInvalidArgumentError("invalid player status")
+// 	}
+// }

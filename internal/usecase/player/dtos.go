@@ -1,4 +1,4 @@
-package player
+package playeruc
 
 import (
 	"time"
@@ -8,111 +8,69 @@ import (
 )
 
 type AddPlayerReq struct {
-	TeamID       string
-	UserID       string
-	FullName     string
-	DOB          time.Time
-	JerseyNumber int32
-	Postion      entity.PlayerPosition
-	Height       float32
-	Weight       float32
-	ImageBytes   []byte
+	UserID        string
+	FullName      string
+	DOB           time.Time
+	Nationality   string
+	PreferredFoot entity.PreferredFoot
+	Position      entity.PlayerPosition
+	ImageBytes    []byte
 }
 
 type AddPlayerRes struct {
-	ID           uuid.UUID
-	TeamMemberID uuid.UUID
-	FullName     string
-	JerseyNumber int32
-	Position     entity.PlayerPosition
-	Status       entity.PlayerStatus
-	PresignedUrl string
+	ID            uuid.UUID
+	FullName      string
+	DOB           time.Time
+	Nationality   string
+	PreferredFoot entity.PreferredFoot
+	Position      entity.PlayerPosition
+	Status        entity.PlayerStatus
+	PresignedUrl  string
 }
 
 type UpdatePlayerReq struct {
-	UserID       string
-	TeamID       string
-	PlayerID     string
-	FullName     *string
-	DateOfBirth  *time.Time
-	JerseyNumber *int32
-	Position     *entity.PlayerPosition
-	Height       *float32
-	Weight       *float32
-	Status       *entity.PlayerStatus
+	PlayerID      string
+	UserID        string
+	FullName      *string
+	DOB           *time.Time
+	Nationality   *string
+	PreferredFoot *entity.PreferredFoot
+	Position      *entity.PlayerPosition
 }
 
 type UpdatePlayersRes struct {
-	PlayerID     uuid.UUID
-	TeamMemberID uuid.UUID
-	FullName     string
-	DateOfBirth  time.Time
-	JerseyNumber int32
-	Position     entity.PlayerPosition
-	Height       float32
-	Weight       float32
-	Status       entity.PlayerStatus
-}
-
-type ListTeamPlayersReq struct {
-	TeamID       string
-	Page         int32
-	Limit        int32
-	PlayerStatus entity.PlayerStatus
-	Position     entity.PlayerPosition
-	Search       string
+	PlayerID      uuid.UUID
+	Status        entity.PlayerStatus
+	FullName      string
+	DOB           time.Time
+	Nationality   string
+	PreferredFoot entity.PreferredFoot
+	Position      entity.PlayerPosition
 }
 
 type PlayerRes struct {
 	ID           uuid.UUID
 	TeamMemberID uuid.UUID
 	FullName     string
-	JerseyNumber int32
 	Position     entity.PlayerPosition
 	Status       entity.PlayerStatus
 	ImageUrl     string
 }
 
-type PaginateDetails struct {
-	TotalPage int32
-	Page      int32
-	Limit     int32
-	Total     int64
-}
-
 type GetPlayerReq struct {
-	TeamID   string
+	UserID   string
 	PlayerID string
 }
 
 type GetPlayerRes struct {
 	PlayerID     uuid.UUID
-	TeamMemberID uuid.UUID
 	FullName     string
 	DateOfBirth  time.Time
-	JerseyNumber int32
 	Position     entity.PlayerPosition
-	Height       float32
-	Weight       float32
+	PreferedFoot entity.PreferredFoot
+	Nationality  string
 	Status       entity.PlayerStatus
 	CreatedAt    time.Time
-}
-
-type ReleasePlayerReq struct {
-	UserID   string
-	TeamID   string
-	PlayerID string
-}
-
-type ReleasePlayerRes struct {
-	ID           uuid.UUID
-	TeamMemberID uuid.UUID
-	FullName     string
-	JerseyNumber int32
-	Position     entity.PlayerPosition
-	Status       entity.PlayerStatus
-	ReleasedAt   time.Time
-	JoinedAt     time.Time
 }
 
 type UpdatePlayerImageReq struct {
@@ -148,4 +106,33 @@ type RemovePlayerImageReq struct {
 
 type RemovePlayerImageRes struct {
 	Success bool
+}
+
+type ListPlayerReq struct {
+	Page         int32
+	Limit        int32
+	PlayerStatus entity.PlayerStatus
+	Position     entity.PlayerPosition
+	Search       string
+}
+
+type ListPlayerDetails struct {
+	ID           uuid.UUID
+	FullName     string
+	Position     entity.PlayerPosition
+	PreferedFoot entity.PreferredFoot
+	Status       entity.PlayerStatus
+	ImageUrl     string
+}
+
+type PaginateDetails struct {
+	TotalPage int32
+	Page      int32
+	Limit     int32
+	Total     int64
+}
+
+type ListPlayerRes struct {
+	Players    []ListPlayerDetails
+	Pagination PaginateDetails
 }

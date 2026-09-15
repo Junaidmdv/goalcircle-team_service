@@ -7,6 +7,8 @@ import (
 	"time"
 
 	pb "github.com/Junaidmdv/goalcircle-protos/team/v1"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
+	teamsaga "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga/team"
 	playerUsecase "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/player"
 	playeruc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/player"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
@@ -20,10 +22,11 @@ import (
 )
 
 type PlayerHandler struct {
-	playerUc  playerUsecase.PlayerUsecase
-	logger    logger.Logger
-	timeout   *time.Duration
-	validater *validater.Validater
+	playersaga teamsaga.PlayerSaga
+	playerUc   playerUsecase.PlayerUsecase
+	logger     logger.Logger
+	timeout    *time.Duration
+	validater  *validater.Validater
 	pb.UnimplementedPlayerServiceServer
 }
 
@@ -40,7 +43,7 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 
 	ctx := stream.Context()
 
-	context, cancel := context.WithTimeout(ctx, *ph.timeout)
+	c, cancel := context.WithTimeout(ctx, *ph.timeout)
 	defer cancel()
 
 	var (
@@ -89,14 +92,46 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 		return stWithDetails.Err()
 	}
 
-	playr, err := ph.playerUc.AddNewPlayer(context, &playerUsecase.AddPlayerReq{})
+	res, err := ph.playersaga.AddPlayer(c, &teamsaga.PlayerSagaState{
+		AddPlayerReq: &playeruc.AddPlayerReq{
+			UserID:        data.UserID,
+			FullName:      data.FullName,
+			DOB:           data.DateOfBirth,
+			Nationality:   data.Nationality,
+			PreferredFoot: data.PreferredFoot,
+			Position:      data.Position,
+			ImageBytes:    buffer.Bytes(),
+		},
+		AddUserRoleReq: &teamsaga.AddUserRoleReq{
+			UserID:       data.UserID,
+			Role:         string(entity.PLAYER),
+			RefreshToken: data.RefreshToken,
+		},
+	})
 
 	if err != nil {
 		return apperror.GRPCStatus(err)
 	}
 
 	return stream.SendAndClose(&pb.AddPlayerRes{
-		PlayerId: playr.ID.String(),
+		PlayerDetails: &pb.AddPlayerRes_PlayerDetails{
+			PlayerId:     res.AddPlayerRes.ID.String(),
+			FullName:     res.AddPlayerReq.FullName,
+			Dob:          res.AddPlayerRes.DOB.Format("01-10-2010"),
+			Natinality:   res.AddPlayerReq.Nationality,
+			Position:     string(res.AddPlayerRes.Position),
+			PreferedFoot: string(res.AddPlayerRes.PreferredFoot),
+			PresignedUrl: res.AddPlayerRes.PresignedUrl,
+		},
+		UserDetails: &pb.AddPlayerRes_UserDetails{
+			SessionId:          res.AddUserRoleRes.SessionID,
+			UserId:             res.AddUserRoleReq.UserID,
+			Email:              res.AddUserRoleRes.Email,
+			AccessToken:        res.AddUserRoleRes.AccessToken,
+			AccessTokenExpiry:  timestamppb.New(res.AddUserRoleRes.AccessTokenExpiry),
+			RefreshToken:       res.AddUserRoleRes.RefreshToken,
+			RefreshTokenExpiry: timestamppb.New(res.AddUserRoleRes.RefreshTokenExpiry),
+		},
 	})
 }
 
@@ -140,7 +175,6 @@ func (ph *PlayerHandler) UpdatePlayerDetails(ctx context.Context, input *pb.Upda
 	}, nil
 }
 
-
 func (ph *PlayerHandler) GetPlayer(ctx context.Context, input *pb.GetPlayerReq) (*pb.GetPlayerRes, error) {
 	context, cancel := context.WithTimeout(ctx, *ph.timeout)
 	defer cancel()
@@ -173,8 +207,6 @@ func (ph *PlayerHandler) GetPlayer(ctx context.Context, input *pb.GetPlayerReq) 
 		CreatedAt:     timestamppb.New(playerRes.CreatedAt),
 	}, nil
 }
-
-
 
 func (ph *PlayerHandler) UpdatePlayerImage(stream grpc.ClientStreamingServer[pb.UpdatePlayerImageReq, pb.UpdatePlayerImageRes]) error {
 	ctx := stream.Context()

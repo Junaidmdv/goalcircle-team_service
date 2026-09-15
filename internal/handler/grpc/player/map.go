@@ -26,6 +26,7 @@ func ToAddPlayerReq(input *pb.PlayerDetails) (*AddPlayerReq, error) {
 		Position:      position,
 		PreferredFoot: preferedfoot,
 		Nationality:   input.Natinality,
+		RefreshToken:  input.RefreshToken,
 	}, nil
 }
 
@@ -35,7 +36,6 @@ func ToUpdatePlayerReq(input *pb.UpdatePlayerRequest) (*UpdatePlayerReq, error) 
 		t := input.DateOfBirth.AsTime()
 		dateOfBirth = &t
 	}
-
 
 	var position *entity.PlayerPosition
 	if input.Position != nil {

@@ -22,6 +22,7 @@ import (
 
 type PlayerUsecase interface {
 	AddNewPlayer(context.Context, *AddPlayerReq) (*AddPlayerRes, error)
+	DeletePlayer(ctx context.Context, playerID uuid.UUID) error
 	UpdatePlayerDetails(context.Context, *UpdatePlayerReq) (*UpdatePlayersRes, error)
 	ListPlayer(ctx context.Context, input *ListPlayerReq) (*ListPlayerRes, error)
 	GetPlayer(context.Context, *GetPlayerReq) (*GetPlayerRes, error)
@@ -127,7 +128,23 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 		Status:        playerRes.Status,
 		PresignedUrl:  presignedUrl,
 	}, nil
+}
 
+func (pu *playerUsecase) DeletePlayer(ctx context.Context, playerID uuid.UUID) error {
+
+	player, err := pu.playerRepository.GetPlayer(ctx, playerID)
+	if err != nil {
+		return err
+	}
+
+	if err := pu.playerRepository.DeletePlayer(ctx, player.ID); err != nil {
+		return err
+	}
+
+	if err := pu.ObjectStorage.Delete(ctx, pu.ObjectStorageConfig.Bucket, *player.ProfileImageKey); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (pu *playerUsecase) UpdatePlayerDetails(ctx context.Context, input *UpdatePlayerReq) (*UpdatePlayersRes, error) {

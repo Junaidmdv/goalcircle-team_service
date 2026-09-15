@@ -14,13 +14,13 @@ type AddPlayerReq struct {
 	Position      entity.PlayerPosition `json:"player_position" validate:"required,player-position"`
 	PreferredFoot entity.PreferredFoot  `json:"preferred_foot" validate:"required"`
 	Nationality   string                `json:"nationality" validate:"required,len=2"`
+	RefreshToken  string                `json:"refresh_token" validate:"required"`
 }
 
 type AddPlayerRes struct {
 	PlayerID      uuid.UUID
 	TeamMemberID  uuid.UUID
 	FullName      string
-	JerseyNumber  int32
 	PlayerPositin entity.PlayerPosition
 	PlayerStatus  entity.PlayerStatus
 }

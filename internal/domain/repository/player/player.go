@@ -20,6 +20,7 @@ type PlayerRepository interface {
 	IsPlayerExist(context.Context, uuid.UUID) (bool, error)
 	GetPlayerImageKey(ctx context.Context, playerID uuid.UUID) (string, error)
 	UpdatePlayerDetails(ctx context.Context, playerID uuid.UUID, player *entity.Player) error
+	DeletePlayer(ctx context.Context, playerID uuid.UUID) error
 }
 
 type playerRepository struct {
@@ -157,7 +158,6 @@ func (pr *playerRepository) IsPlayerExist(ctx context.Context, userID uuid.UUID)
 	return true, nil
 }
 
-
 func (pr *playerRepository) GetPlayerImageKey(ctx context.Context, playerID uuid.UUID) (string, error) {
 	var imageKey string
 
@@ -190,5 +190,20 @@ func (pr *playerRepository) UpdatePlayerDetails(ctx context.Context, playerID uu
 	if result.RowsAffected == 0 {
 		return apperror.NewNotFoundError("failed to find player id")
 	}
+	return nil
+}
+
+func (pr *playerRepository) DeletePlayer(ctx context.Context, playerID uuid.UUID) error {
+
+	result := pr.db.WithContext(ctx).Delete(&entity.Player{}, playerID)
+
+	if result.Error != nil {
+		return apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return apperror.NewNotFoundError("player not found")
+	}
+
 	return nil
 }

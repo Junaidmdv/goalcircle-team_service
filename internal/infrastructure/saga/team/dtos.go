@@ -7,6 +7,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type AddUserRoleReq struct {
+	UserID       string
+	Role         string
+	RefreshToken string
+}
+
 type AddUserRoleRes struct {
 	SessionID          string
 	UserID             string

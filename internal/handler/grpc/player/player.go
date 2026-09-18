@@ -101,6 +101,8 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 			PreferredFoot: data.PreferredFoot,
 			Position:      data.Position,
 			ImageBytes:    buffer.Bytes(),
+			Height:        data.Height,
+			Weight:        data.Weight,
 		},
 		AddUserRoleReq: &teamsaga.AddUserRoleReq{
 			UserID:       data.UserID,
@@ -118,7 +120,7 @@ func (ph *PlayerHandler) AddNewPlayer(stream grpc.ClientStreamingServer[pb.AddPl
 			PlayerId:     res.AddPlayerRes.ID.String(),
 			FullName:     res.AddPlayerReq.FullName,
 			Dob:          res.AddPlayerRes.DOB.Format("01-10-2010"),
-			Natinality:   res.AddPlayerReq.Nationality,
+			Nationality:  res.AddPlayerReq.Nationality,
 			Position:     string(res.AddPlayerRes.Position),
 			PreferedFoot: string(res.AddPlayerRes.PreferredFoot),
 			PresignedUrl: res.AddPlayerRes.PresignedUrl,
@@ -152,7 +154,6 @@ func (ph *PlayerHandler) UpdatePlayerDetails(ctx context.Context, input *pb.Upda
 	}
 
 	res, err := ph.playerUc.UpdatePlayerDetails(context, &playeruc.UpdatePlayerReq{
-		PlayerID:      data.PlayerID,
 		UserID:        data.UserID,
 		FullName:      data.FullName,
 		DOB:           data.DateOfBirth,
@@ -166,13 +167,58 @@ func (ph *PlayerHandler) UpdatePlayerDetails(ctx context.Context, input *pb.Upda
 	}
 
 	return &pb.UpdatePlayersResponse{
-		PlayerId:      res.PlayerID.String(),
 		FullName:      res.FullName,
 		DateOfBirth:   timestamppb.New(res.DOB),
 		Position:      string(res.Position),
 		Status:        string(res.Status),
 		PreferredFoot: string(res.PreferredFoot),
 	}, nil
+}
+
+func (ph *PlayerHandler) ListPlayers(ctx context.Context, req *pb.ListPlayersReq) (*pb.ListPlayerRes, error) {
+
+	status, err := toPlayerStatus(req.PlayerStatus)
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
+	position, err := toPlayerPosition(req.Position)
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
+
+	res, err := ph.playerUc.ListPlayer(ctx, &playeruc.ListPlayerReq{
+		Page:         req.Page,
+		Limit:        req.Limit,
+		PlayerStatus: status,
+		Position:     position,
+		Search:       req.Search,
+	})
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
+
+	var players []*pb.ListPlayerRes_PlayerDetails
+
+	for _, p := range res.Players {
+		players = append(players, &pb.ListPlayerRes_PlayerDetails{
+			PlayerId:        p.ID.String(),
+			UserId:          p.UserID.String(),
+			PreferredFoot:   string(p.PreferedFoot),
+			Position:        string(position),
+			ProfileImageUrl: p.ImageUrl,
+		})
+	}
+
+	return &pb.ListPlayerRes{
+		PaginationDetails: &pb.PaginationDetails{
+			Limit:     res.Pagination.Limit,
+			Page:      res.Pagination.Page,
+			TotalPage: res.Pagination.TotalPage,
+			TotalItem: res.Pagination.Total,
+		},
+		PlayerDetails: players,
+	}, nil
+
 }
 
 func (ph *PlayerHandler) GetPlayer(ctx context.Context, input *pb.GetPlayerReq) (*pb.GetPlayerRes, error) {
@@ -204,6 +250,8 @@ func (ph *PlayerHandler) GetPlayer(ctx context.Context, input *pb.GetPlayerReq) 
 		PreferredFoot: string(playerRes.PreferedFoot),
 		Nationality:   playerRes.Nationality,
 		Status:        string(playerRes.Status),
+		Height:        playerRes.Height,
+		Weight:        playerRes.Weight,
 		CreatedAt:     timestamppb.New(playerRes.CreatedAt),
 	}, nil
 }
@@ -247,14 +295,10 @@ func (ph *PlayerHandler) UpdatePlayerImage(stream grpc.ClientStreamingServer[pb.
 
 	res, err := ph.playerUc.UpdateImage(ctx, &playeruc.UpdatePlayerImageReq{
 		UserID:    metadata.UserId,
-		TeamID:    metadata.TeamId,
-		PlayerID:  metadata.PlayerId,
 		ImageData: buffer.Bytes(),
 	})
 
 	return stream.SendAndClose(&pb.UpdatePlayerImageRes{
-		TeamId:       res.TeamID,
-		PlayerId:     res.PlayerID,
 		PresignedUrl: res.PresignedUrl,
 	})
 
@@ -266,15 +310,56 @@ func (ph *PlayerHandler) GetPlayerPresignedUrl(ctx context.Context, req *pb.GetP
 
 	res, err := ph.playerUc.GetPlayerPresignedUrl(ctx, &playeruc.GetPlayerPresignedUrlReq{
 		PlayerID: req.PlayerId,
-		TeamID:   req.TeamId,
 	})
 
 	if err != nil {
 		return nil, apperror.GRPCStatus(err)
 	}
 	return &pb.GetPlayerPresignedUrlRes{
-		TeamId:       res.TeamID,
 		PlayerId:     res.PlayerId,
 		PresignedUrl: res.PresignedUrl,
 	}, nil
+}
+
+func (ph *PlayerHandler) PlayerProfile(ctx context.Context, req *pb.PlayerProfileReq) (*pb.PlayerProfileRes, error) {
+	res, err := ph.playerUc.PlayerProfile(ctx, &playeruc.PlayerProfileReq{
+		UserID: req.UserId,
+	})
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
+
+	return &pb.PlayerProfileRes{
+		UserId:        res.UserID.String(),
+		PlayerId:      res.PlayerID.String(),
+		FullName:      res.FullName,
+		DateOfBirth:   timestamppb.New(res.DateOfBirth),
+		Position:      string(res.Position),
+		Nationality:   res.Nationality,
+		PreferredFoot: string(res.PreferedFoot),
+		Status:        string(res.Status),
+		Height:        res.Height,
+		Weight:        res.Weight,
+		CreatedAt:     timestamppb.New(res.CreatedAt),
+	}, nil
+
+}
+
+func (ph *PlayerHandler) RemovePlayerImage(ctx context.Context, req *pb.RemovePlayerImageReq) (*pb.RemovePlayerImageRes, error) {
+
+	res, err := ph.playerUc.RemovePlayerImage(ctx, &playeruc.RemovePlayerImageReq{
+		UserID: req.UserId,
+	})
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
+
+	return &pb.RemovePlayerImageRes{
+		Success: res.Success,
+	}, nil
+}
+
+func (ph *PlayerHandler) GetMyTeams(ctx context.Context, req *pb.GetMyTeamsReq) (*pb.GetMyTeamsRes, error) {
+
+	return nil, nil
 }

@@ -3,6 +3,7 @@ package playeruc
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
@@ -29,6 +30,8 @@ type PlayerUsecase interface {
 	UpdateImage(context.Context, *UpdatePlayerImageReq) (*UpdatePlayerImageRes, error)
 	GetPlayerPresignedUrl(context.Context, *GetPlayerPresignedUrlReq) (*GetPlayerPresignedUrlRes, error)
 	RemovePlayerImage(context.Context, *RemovePlayerImageReq) (*RemovePlayerImageRes, error)
+	PlayerProfile(context.Context, *PlayerProfileReq) (*PlayerProfileRes, error)
+	GetMyTeams(context.Context, *GetMyTeamsReq) (*GetMyTeamsRes, error)
 }
 
 type playerUsecase struct {
@@ -149,39 +152,44 @@ func (pu *playerUsecase) DeletePlayer(ctx context.Context, playerID uuid.UUID) e
 
 func (pu *playerUsecase) UpdatePlayerDetails(ctx context.Context, input *UpdatePlayerReq) (*UpdatePlayersRes, error) {
 
-	playerID, err := uuid.Parse(input.PlayerID)
+	userID, err := uuid.Parse(input.UserID)
 	if err != nil {
 		return nil, apperror.NewBadRequestError("invalid player id")
 	}
 
-	// userID, err := uuid.Parse(input.UserID)
-	// if err != nil {
-	// 	return nil, apperror.NewBadRequestError("invalid user id")
-	// }
+	player, err := pu.playerRepository.GetPlayerByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 
-	if err := pu.playerRepository.UpdatePlayerDetails(ctx, playerID, &entity.Player{
+	if err := pu.playerRepository.UpdatePlayerDetails(ctx, player.ID, &entity.Player{
 		FullName:      *input.FullName,
 		DateOfBirth:   *input.DOB,
 		Position:      *input.Position,
 		PreferredFoot: *input.PreferredFoot,
+		Nationality:   *input.Nationality,
+		Height:        *input.Height,
+		Weight:        *input.Weight,
 	}); err != nil {
 
 		return nil, err
 	}
 
-	player, err := pu.playerRepository.GetPlayer(ctx, playerID)
+	player, err = pu.playerRepository.GetPlayer(ctx, player.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	return &UpdatePlayersRes{
-		PlayerID:      playerID,
+		PlayerID:      player.ID,
 		FullName:      player.FullName,
 		Status:        player.Status,
 		DOB:           player.DateOfBirth,
 		Position:      player.Position,
 		Nationality:   player.Nationality,
 		PreferredFoot: player.PreferredFoot,
+		Height:        player.Height,
+		Weight:        player.Weight,
 	}, nil
 }
 
@@ -215,6 +223,7 @@ func (pu *playerUsecase) ListPlayer(ctx context.Context, input *ListPlayerReq) (
 	for i, p := range players {
 		playerList = append(playerList, ListPlayerDetails{
 			ID:           p.ID,
+			UserID:       p.UserID,
 			FullName:     p.FullName,
 			Position:     p.Position,
 			PreferedFoot: p.PreferredFoot,
@@ -257,23 +266,27 @@ func (pu *playerUsecase) GetPlayer(ctx context.Context, input *GetPlayerReq) (*G
 	}
 
 	return &GetPlayerRes{
-		PlayerID:    player.ID,
-		FullName:    player.FullName,
-		DateOfBirth: player.DateOfBirth,
-		Position:    player.Position,
-		Status:      player.Status,
-		CreatedAt:   player.CreatedAt,
+		PlayerID:     player.ID,
+		FullName:     player.FullName,
+		DateOfBirth:  player.DateOfBirth,
+		Position:     player.Position,
+		PreferedFoot: player.PreferredFoot,
+		Nationality:  player.Nationality,
+		Status:       player.Status,
+		Height:       player.Height,
+		Weight:       player.Weight,
+		CreatedAt:    player.CreatedAt,
 	}, nil
 }
 
 func (pu *playerUsecase) UpdateImage(ctx context.Context, input *UpdatePlayerImageReq) (*UpdatePlayerImageRes, error) {
 
-	playerID, err := uuid.Parse(input.PlayerID)
+	userID, err := uuid.Parse(input.UserID)
 	if err != nil {
-		return nil, apperror.NewInvalidArgumentError("invalid team id")
+		return nil, apperror.NewBadRequestError("invalid user id")
 	}
 
-	player, err := pu.playerRepository.GetPlayer(ctx, playerID)
+	player, err := pu.playerRepository.GetPlayerByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +308,7 @@ func (pu *playerUsecase) UpdateImage(ctx context.Context, input *UpdatePlayerIma
 		return nil, err
 	}
 
-	if err = pu.playerRepository.UpdateImageKey(ctx, playerID, key); err != nil {
+	if err = pu.playerRepository.UpdateImageKey(ctx, player.ID, key); err != nil {
 		return nil, err
 	}
 
@@ -305,7 +318,7 @@ func (pu *playerUsecase) UpdateImage(ctx context.Context, input *UpdatePlayerIma
 	}
 
 	return &UpdatePlayerImageRes{
-		PlayerID:     input.PlayerID,
+		PlayerID:     player.ID.String(),
 		PresignedUrl: presignedUrl,
 	}, nil
 
@@ -333,7 +346,6 @@ func (pu *playerUsecase) GetPlayerPresignedUrl(ctx context.Context, input *GetPl
 	}
 
 	return &GetPlayerPresignedUrlRes{
-		TeamID:       input.TeamID,
 		PlayerId:     input.PlayerID,
 		PresignedUrl: presignedUrl,
 	}, nil
@@ -341,27 +353,61 @@ func (pu *playerUsecase) GetPlayerPresignedUrl(ctx context.Context, input *GetPl
 
 func (pu *playerUsecase) RemovePlayerImage(ctx context.Context, req *RemovePlayerImageReq) (*RemovePlayerImageRes, error) {
 
-	// userID, err := uuid.Parse(req.UserID)
-	// if err != nil {
-	// 	pu.logger.Error("invalid team id", "error", errors.New("invalid user id from token"))
-	// 	return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
-	// }
-
-	playerID, err := uuid.Parse(req.PlayerID)
+	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		return nil, apperror.NewInvalidArgumentError("invalid player id")
+		pu.logger.Error("invalid team id", "error", errors.New("invalid user id from token"))
+		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
 	}
 
-	key, err := pu.playerRepository.GetPlayerImageKey(ctx, playerID)
+	player, err := pu.playerRepository.GetPlayerByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	err = pu.ObjectStorage.Delete(ctx, pu.ObjectStorageConfig.Bucket, key)
+
+	if player.ProfileImageKey == nil {
+		return nil, apperror.NewConflictError("image not added or already deleted")
+	}
+
+	err = pu.ObjectStorage.Delete(ctx, pu.ObjectStorageConfig.Bucket, *player.ProfileImageKey)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := pu.playerRepository.UpdateImageKey(ctx, player.ID, ""); err != nil {
 		return nil, err
 	}
 
 	return &RemovePlayerImageRes{
 		Success: true,
 	}, nil
+}
+
+func (pu *playerUsecase) PlayerProfile(ctx context.Context, input *PlayerProfileReq) (*PlayerProfileRes, error) {
+
+	userID, err := uuid.Parse(input.UserID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid user id")
+	}
+
+	player, err := pu.playerRepository.GetPlayerByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PlayerProfileRes{
+		PlayerID:     player.ID,
+		FullName:     player.FullName,
+		DateOfBirth:  player.DateOfBirth,
+		Position:     player.Position,
+		PreferedFoot: player.PreferredFoot,
+		Nationality:  player.Nationality,
+		Status:       player.Status,
+		Height:       player.Height,
+		Weight:       player.Weight,
+		CreatedAt:    player.CreatedAt,
+	}, nil
+}
+
+func (pu *playerUsecase) GetMyTeams(context.Context, *GetMyTeamsReq) (*GetMyTeamsRes, error) { 
+	return nil, nil
 }

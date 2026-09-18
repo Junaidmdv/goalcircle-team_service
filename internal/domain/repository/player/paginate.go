@@ -31,22 +31,22 @@ func Paginate(pageNum, pageLimit int32) func(*gorm.DB) *gorm.DB {
 	}
 }
 
-func Search(search string) func(*gorm.DB) *gorm.DB {
+func Search(search *string) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
-		if search == "" {
+		if search == nil {
 			return db
 		}
 
-		if id, err := uuid.Parse(search); err == nil {
+		if id, err := uuid.Parse(*search); err == nil {
 			db = db.Where(
-				"players.id = ? OR players.full_name ILIKE ?",
+				"players.i = ? OR players.full_name ILIKE ?",
 				id,
-				"%"+search+"%",
+				"%"+*search+"%",
 			)
 		} else {
 			db = db.Where(
 				"players.full_name ILIKE ?",
-				"%"+search+"%",
+				"%"+*search+"%",
 			)
 		}
 

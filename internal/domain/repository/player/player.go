@@ -16,6 +16,7 @@ type PlayerRepository interface {
 	UpdatePlayerStatus(context.Context, *uuid.UUID, *entity.PlayerStatus) error
 	GetPlayers(context.Context, *ListUserReq) ([]entity.Player, int64, error)
 	GetPlayer(context.Context, uuid.UUID) (*entity.Player, error)
+	GetPlayerByUserID(ctx context.Context, userID uuid.UUID) (*entity.Player, error)
 	UpdateImageKey(context.Context, uuid.UUID, string) error
 	IsPlayerExist(context.Context, uuid.UUID) (bool, error)
 	GetPlayerImageKey(ctx context.Context, playerID uuid.UUID) (string, error)
@@ -94,6 +95,21 @@ func (pr *playerRepository) GetPlayer(ctx context.Context, playerID uuid.UUID) (
 		if errors.Is(gorm.ErrRecordNotFound, err) {
 			return nil, apperror.NewNotFoundError("player not exist")
 		}
+	}
+
+	return &player, nil
+}
+
+func (pr *playerRepository) GetPlayerByUserID(ctx context.Context, userID uuid.UUID) (*entity.Player, error) {
+	var player entity.Player
+
+	if err := pr.db.WithContext(ctx).Where("user_id=?", userID).Take(&player).Error; err != nil {
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.NewNotFoundError("player is not found")
+		}
+
+		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
 	}
 
 	return &player, nil

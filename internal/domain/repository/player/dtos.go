@@ -9,5 +9,5 @@ type ListUserReq struct {
 	Limit        int32
 	PlayerStatus entity.PlayerStatus
 	Position     entity.PlayerPosition
-	Search       string
+	Search       *string
 }

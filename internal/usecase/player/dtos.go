@@ -15,6 +15,8 @@ type AddPlayerReq struct {
 	PreferredFoot entity.PreferredFoot
 	Position      entity.PlayerPosition
 	ImageBytes    []byte
+	Weight        float32
+	Height        float32
 }
 
 type AddPlayerRes struct {
@@ -26,16 +28,19 @@ type AddPlayerRes struct {
 	Position      entity.PlayerPosition
 	Status        entity.PlayerStatus
 	PresignedUrl  string
+	Weight        float32
+	Height        float32
 }
 
 type UpdatePlayerReq struct {
-	PlayerID      string
 	UserID        string
 	FullName      *string
 	DOB           *time.Time
 	Nationality   *string
 	PreferredFoot *entity.PreferredFoot
 	Position      *entity.PlayerPosition
+	Weight        *float32
+	Height        *float32
 }
 
 type UpdatePlayersRes struct {
@@ -46,6 +51,8 @@ type UpdatePlayersRes struct {
 	Nationality   string
 	PreferredFoot entity.PreferredFoot
 	Position      entity.PlayerPosition
+	Weight        float32
+	Height        float32
 }
 
 type PlayerRes struct {
@@ -70,13 +77,13 @@ type GetPlayerRes struct {
 	PreferedFoot entity.PreferredFoot
 	Nationality  string
 	Status       entity.PlayerStatus
+	Height       float32
+	Weight       float32
 	CreatedAt    time.Time
 }
 
 type UpdatePlayerImageReq struct {
-	TeamID    string
 	UserID    string
-	PlayerID  string
 	ImageData []byte
 }
 
@@ -87,21 +94,16 @@ type UpdatePlayerImageRes struct {
 }
 
 type GetPlayerPresignedUrlReq struct {
-	UserID   string
 	PlayerID string
-	TeamID   string
 }
 
 type GetPlayerPresignedUrlRes struct {
-	TeamID       string
 	PlayerId     string
 	PresignedUrl string
 }
 
 type RemovePlayerImageReq struct {
-	UserID   string
-	TeamID   string
-	PlayerID string
+	UserID string
 }
 
 type RemovePlayerImageRes struct {
@@ -113,11 +115,12 @@ type ListPlayerReq struct {
 	Limit        int32
 	PlayerStatus entity.PlayerStatus
 	Position     entity.PlayerPosition
-	Search       string
+	Search       *string
 }
 
 type ListPlayerDetails struct {
 	ID           uuid.UUID
+	UserID       uuid.UUID
 	FullName     string
 	Position     entity.PlayerPosition
 	PreferedFoot entity.PreferredFoot
@@ -135,4 +138,28 @@ type PaginateDetails struct {
 type ListPlayerRes struct {
 	Players    []ListPlayerDetails
 	Pagination PaginateDetails
+}
+
+type PlayerProfileReq struct {
+	UserID string
+}
+
+type PlayerProfileRes struct {
+	UserID       uuid.UUID
+	PlayerID     uuid.UUID
+	FullName     string
+	DateOfBirth  time.Time
+	Position     entity.PlayerPosition
+	PreferedFoot entity.PreferredFoot
+	Nationality  string
+	Status       entity.PlayerStatus
+	Height       float32
+	Weight       float32
+	CreatedAt    time.Time
+}
+
+type GetMyTeamsReq struct {
+}
+
+type GetMyTeamsRes struct {
 }

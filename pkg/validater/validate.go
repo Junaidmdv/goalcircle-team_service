@@ -32,6 +32,8 @@ func NewValidater() (*Validater, error) {
 	validater.RegisterValidation("player-status", playerStatusValidater)
 	validater.RegisterValidation("staff-role", staffRoleValidater)
 	validater.RegisterValidation("staff-desig", staffDesignationValidater)
+	validater.RegisterValidation("iso3156", countryCodeValidation)
+	validater.RegisterValidation("preferredfoot", playerPrefferedFootValidator)
 
 	validater.RegisterTagNameFunc(func(field reflect.StructField) string {
 		name := strings.SplitN(field.Tag.Get("json"), ",", 2)[0]
@@ -113,6 +115,26 @@ func NewValidater() (*Validater, error) {
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
 			t, _ := ut.T("team-name", fe.Field(), fmt.Sprintf("%v", fe.Value()))
+			return t
+		},
+	)
+
+	validater.RegisterTranslation("iso3156", engtrans,
+		func(ut ut.Translator) error {
+			return ut.Add("iso3156", "invalid country code.Add valid country code", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T("iso3156", fe.Field())
+			return t
+		},
+	)
+
+	validater.RegisterTranslation("preferredfoot", engtrans,
+		func(ut ut.Translator) error {
+			return ut.Add("preferredfoot", "invalid preferred foot", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T("preferedfoot", fe.Field())
 			return t
 		},
 	)

@@ -6,15 +6,6 @@ import (
 	"gorm.io/gorm"
 )
 
-func filterByPlayerStatus(status entity.PlayerStatus) func(*gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		if status == entity.PlayerStatusInvalid {
-			return db
-		}
-		return db.Where("players.status=?", status)
-	}
-}
-
 func filterByPosition(position entity.PlayerPosition) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		if position == entity.PlayerPositionUnspecified {

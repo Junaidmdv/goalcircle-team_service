@@ -7,7 +7,6 @@ import (
 type ListUserReq struct {
 	Page         int32
 	Limit        int32
-	PlayerStatus entity.PlayerStatus
 	Position     entity.PlayerPosition
 	Search       *string
 }

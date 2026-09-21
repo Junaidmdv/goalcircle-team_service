@@ -22,7 +22,8 @@ type Minio struct {
 func NewMinio(config config.ObjectStorageConfig, logger logger.Logger) (*Minio, error) {
 	minio, err := minio.New(config.EndPoint, &minio.Options{
 		Creds: credentials.NewStaticV4(
-			config.AccesskeyId, config.SecreteKey, "",
+			config.AccesskeyId,
+			config.SecreteKey, "",
 		),
 		Secure: config.SSL,
 	})

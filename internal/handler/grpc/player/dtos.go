@@ -13,7 +13,7 @@ type AddPlayerReq struct {
 	DateOfBirth   time.Time             `json:"dob" validate:"required"`
 	Position      entity.PlayerPosition `json:"player_position" validate:"required,player-position"`
 	PreferredFoot entity.PreferredFoot  `json:"preferred_foot" validate:"required"`
-	Nationality   string                `json:"nationality" validate:"required,len=2"`
+	Nationality   string                `json:"nationality" validate:"required,iso3156"`
 	RefreshToken  string                `json:"refresh_token" validate:"required"`
 	Height        float32               `json:"height" validate:"required,min=100,max=250"`
 	Weight        float32               `json:"weight" validate:"required,min=20,max=200"`
@@ -24,7 +24,6 @@ type AddPlayerRes struct {
 	TeamMemberID  uuid.UUID
 	FullName      string
 	PlayerPositin entity.PlayerPosition
-	PlayerStatus  entity.PlayerStatus
 }
 
 type UpdatePlayerReq struct {

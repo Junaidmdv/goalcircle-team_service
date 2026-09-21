@@ -2,9 +2,11 @@ package validater
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/go-playground/validator/v10"
+	"github.com/pariz/gountries"
 )
 
 func phoneValidation(fl validator.FieldLevel) bool {
@@ -30,10 +32,15 @@ func passwordValidation(fl validator.FieldLevel) bool {
 }
 
 func playerPositionValidator(fl validator.FieldLevel) bool {
-	return entity.PlayerPosition(fl.Field().String()) != entity.PositionUnspecified
+	return entity.PlayerPosition(fl.Field().String()) != entity.PlayerPositionUnspecified
 }
+
+func playerPrefferedFootValidator(fl validator.FieldLevel) bool {
+	return entity.PreferredFoot(fl.Field().String()) != entity.PreferredFootInvalid
+}
+
 func playerStatusValidater(fl validator.FieldLevel) bool {
-	return entity.PlayerStatus(fl.Field().String()) != entity.PlayerStatusInvalid
+	return entity.TeamPlayerStatus(fl.Field().String()) != entity.TeamPlayerStatusInvalid
 }
 
 func staffRoleValidater(fl validator.FieldLevel) bool {
@@ -50,4 +57,17 @@ func teamNameValidation(fl validator.FieldLevel) bool {
 	regex := `^[A-Za-z0-9][A-Za-z0-9 .'-]{2,49}$`
 	match, _ := regexp.MatchString(regex, teamName)
 	return match
+}
+
+func countryCodeValidation(fl validator.FieldLevel) bool {
+	code := strings.ToUpper(fl.Field().String())
+
+	if code == "" {
+		return true
+	}
+
+	query := gountries.New()
+	_, err := query.FindCountryByAlpha(code)
+
+	return err == nil
 }

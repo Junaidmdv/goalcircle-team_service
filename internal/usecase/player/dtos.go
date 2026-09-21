@@ -21,12 +21,12 @@ type AddPlayerReq struct {
 
 type AddPlayerRes struct {
 	ID            uuid.UUID
+	Code          string
 	FullName      string
 	DOB           time.Time
 	Nationality   string
 	PreferredFoot entity.PreferredFoot
 	Position      entity.PlayerPosition
-	Status        entity.PlayerStatus
 	PresignedUrl  string
 	Weight        float32
 	Height        float32
@@ -45,7 +45,8 @@ type UpdatePlayerReq struct {
 
 type UpdatePlayersRes struct {
 	PlayerID      uuid.UUID
-	Status        entity.PlayerStatus
+	UserID        uuid.UUID
+	Code          string
 	FullName      string
 	DOB           time.Time
 	Nationality   string
@@ -60,7 +61,6 @@ type PlayerRes struct {
 	TeamMemberID uuid.UUID
 	FullName     string
 	Position     entity.PlayerPosition
-	Status       entity.PlayerStatus
 	ImageUrl     string
 }
 
@@ -71,12 +71,13 @@ type GetPlayerReq struct {
 
 type GetPlayerRes struct {
 	PlayerID     uuid.UUID
+	PresignedUrl string
+	Code         string
 	FullName     string
 	DateOfBirth  time.Time
 	Position     entity.PlayerPosition
 	PreferedFoot entity.PreferredFoot
 	Nationality  string
-	Status       entity.PlayerStatus
 	Height       float32
 	Weight       float32
 	CreatedAt    time.Time
@@ -88,8 +89,7 @@ type UpdatePlayerImageReq struct {
 }
 
 type UpdatePlayerImageRes struct {
-	TeamID       string
-	PlayerID     string
+    UserID uuid.UUID 
 	PresignedUrl string
 }
 
@@ -111,11 +111,10 @@ type RemovePlayerImageRes struct {
 }
 
 type ListPlayerReq struct {
-	Page         int32
-	Limit        int32
-	PlayerStatus entity.PlayerStatus
-	Position     entity.PlayerPosition
-	Search       *string
+	Page     int32
+	Limit    int32
+	Position entity.PlayerPosition
+	Search   *string
 }
 
 type ListPlayerDetails struct {
@@ -124,8 +123,8 @@ type ListPlayerDetails struct {
 	FullName     string
 	Position     entity.PlayerPosition
 	PreferedFoot entity.PreferredFoot
-	Status       entity.PlayerStatus
 	ImageUrl     string
+	Code         string
 }
 
 type PaginateDetails struct {
@@ -145,17 +144,18 @@ type PlayerProfileReq struct {
 }
 
 type PlayerProfileRes struct {
-	UserID       uuid.UUID
-	PlayerID     uuid.UUID
-	FullName     string
-	DateOfBirth  time.Time
-	Position     entity.PlayerPosition
-	PreferedFoot entity.PreferredFoot
-	Nationality  string
-	Status       entity.PlayerStatus
-	Height       float32
-	Weight       float32
-	CreatedAt    time.Time
+	UserID          uuid.UUID
+	PlayerID        uuid.UUID
+	FullName        string
+	ProfileImageUrl string
+	DateOfBirth     time.Time
+	Position        entity.PlayerPosition
+	PreferedFoot    entity.PreferredFoot
+	Nationality     string
+	Height          float32
+	Weight          float32
+	CreatedAt       time.Time
+	Code            string
 }
 
 type GetMyTeamsReq struct {

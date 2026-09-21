@@ -13,7 +13,6 @@ import (
 
 type PlayerRepository interface {
 	CreatePlayer(context.Context, *entity.Player) (*entity.Player, error)
-	UpdatePlayerStatus(context.Context, *uuid.UUID, *entity.PlayerStatus) error
 	GetPlayers(context.Context, *ListUserReq) ([]entity.Player, int64, error)
 	GetPlayer(context.Context, uuid.UUID) (*entity.Player, error)
 	GetPlayerByUserID(ctx context.Context, userID uuid.UUID) (*entity.Player, error)
@@ -46,18 +45,6 @@ func (pr *playerRepository) CreatePlayer(ctx context.Context, player *entity.Pla
 	return player, nil
 }
 
-func (pr *playerRepository) UpdatePlayerStatus(ctx context.Context, playerID *uuid.UUID, status *entity.PlayerStatus) error {
-
-	if err := pr.db.WithContext(ctx).Where("id=?", playerID).Update("status", status).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apperror.NewNotFoundError("player data is not exist")
-		}
-		pr.logger.Error("database error", "error", err, "method", "repository.Player.UpdatePlayerStatus")
-		return apperror.NewInternalError(apperror.InternalErrorMsg, err)
-	}
-
-	return nil
-}
 
 func (pr *playerRepository) GetPlayers(ctx context.Context, details *ListUserReq) ([]entity.Player, int64, error) {
 	var total int64
@@ -65,7 +52,6 @@ func (pr *playerRepository) GetPlayers(ctx context.Context, details *ListUserReq
 
 	query := pr.db.WithContext(ctx).Model(&entity.Player{}).Scopes(
 		Search(details.Search),
-		filterByPlayerStatus(details.PlayerStatus),
 		filterByPosition(details.Position),
 	)
 
@@ -115,33 +101,11 @@ func (pr *playerRepository) GetPlayerByUserID(ctx context.Context, userID uuid.U
 	return &player, nil
 }
 
-func (pr *playerRepository) GetPlayerStatus(ctx context.Context, teamID uuid.UUID, playerID uuid.UUID) (entity.PlayerStatus, error) {
 
-	var result struct {
-		Status entity.PlayerStatus
-	}
-
-	err := pr.db.WithContext(ctx).
-		Model(&entity.Player{}).
-		Select("status").
-		Where("id = ? AND team_id = ?", playerID, teamID).
-		Take(&result).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", apperror.NewNotFoundError("player not found or not belongs to this team")
-		}
-
-		pr.logger.Error("database error", "error", err)
-		return "", apperror.NewInternalError(apperror.InternalErrorMsg, err)
-	}
-
-	return result.Status, nil
-}
 
 func (pr *playerRepository) UpdateImageKey(ctx context.Context, playerID uuid.UUID, key string) error {
 
-	result := pr.db.WithContext(ctx).Model(&entity.Player{}).Where("id=?", playerID).Update("image_key", key)
+	result := pr.db.WithContext(ctx).Model(&entity.Player{}).Where("id=?", playerID).Update("profile_image_key", key)
 
 	if result.Error != nil {
 		pr.logger.Error(

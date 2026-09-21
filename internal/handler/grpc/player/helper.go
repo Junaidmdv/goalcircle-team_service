@@ -20,10 +20,6 @@ func ToAddPlayerReq(input *pb.PlayerDetails) (*AddPlayerReq, error) {
 		return nil, apperror.NewBadRequestError(err.Error())
 	}
 
-	nationality, err := GetCountry(input.Nationality)
-	if err != nil {
-		return nil, apperror.NewBadRequestError(err.Error())
-	}
 
 	return &AddPlayerReq{
 		UserID:        input.UserId,
@@ -31,7 +27,7 @@ func ToAddPlayerReq(input *pb.PlayerDetails) (*AddPlayerReq, error) {
 		DateOfBirth:   input.Dob.AsTime(),
 		Position:      position,
 		PreferredFoot: preferedfoot,
-		Nationality:   nationality,
+		Nationality:   input.Nationality,
 		RefreshToken:  input.RefreshToken,
 		Height:        input.Height,
 		Weight:        input.Weight,

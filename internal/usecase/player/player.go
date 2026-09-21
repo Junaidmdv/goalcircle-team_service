@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
@@ -18,6 +17,7 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/imageutil"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/util"
 	"github.com/google/uuid"
 )
 
@@ -76,7 +76,16 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 		return nil, apperror.NewBadRequestError("invalid player id")
 	}
 
-	exist, err := pu.playerRepository.IsPlayerExist(ctx, userID)
+	exist, err := pu.staffRepo.IsStaffExistByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if exist {
+		return nil, apperror.NewConflictError("user already register as staff. Please register with different email")
+	}
+
+	exist, err = pu.playerRepository.IsPlayerExist(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -85,9 +94,15 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 		return nil, apperror.NewConflictError("user already registered as player")
 	}
 
+	code, err := pu.code.GenerateCode("PLAYER")
+	if err != nil {
+		return nil, err
+	}
+
 	playerRes, err := pu.playerRepository.CreatePlayer(ctx, &entity.Player{
 		ID:            uuid.New(),
 		UserID:        userID,
+		Code:          code,
 		FullName:      input.FullName,
 		DateOfBirth:   input.DOB,
 		Nationality:   input.Nationality,
@@ -104,8 +119,7 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 		return nil, err
 	}
 
-	objectName := fmt.Sprintf("/players/%s/logo.webp", playerRes.ID)
-
+	objectName := storage.BuildObjectName(storage.PlayerProfile, playerRes.ID)
 	key, err := pu.ObjectStorage.Upload(ctx, pu.ObjectStorageConfig.Bucket, objectName, bytes.NewReader(webpBytes), int64(len(webpBytes)), "image/webp")
 
 	if err != nil {
@@ -123,12 +137,12 @@ func (pu *playerUsecase) AddNewPlayer(ctx context.Context, input *AddPlayerReq) 
 
 	return &AddPlayerRes{
 		ID:            playerRes.ID,
+		Code:          playerRes.Code,
 		FullName:      playerRes.FullName,
 		DOB:           playerRes.DateOfBirth,
 		Nationality:   playerRes.Nationality,
 		PreferredFoot: playerRes.PreferredFoot,
 		Position:      playerRes.Position,
-		Status:        playerRes.Status,
 		PresignedUrl:  presignedUrl,
 	}, nil
 }
@@ -163,15 +177,14 @@ func (pu *playerUsecase) UpdatePlayerDetails(ctx context.Context, input *UpdateP
 	}
 
 	if err := pu.playerRepository.UpdatePlayerDetails(ctx, player.ID, &entity.Player{
-		FullName:      *input.FullName,
-		DateOfBirth:   *input.DOB,
-		Position:      *input.Position,
-		PreferredFoot: *input.PreferredFoot,
-		Nationality:   *input.Nationality,
-		Height:        *input.Height,
-		Weight:        *input.Weight,
+		FullName:      util.DerefOr(input.FullName, player.FullName),
+		DateOfBirth:   util.DerefOr(input.DOB, player.DateOfBirth),
+		Position:      util.DerefOr(input.Position, player.Position),
+		PreferredFoot: util.DerefOr(input.PreferredFoot, player.PreferredFoot),
+		Nationality:   util.DerefOr(input.Nationality, player.Nationality),
+		Height:        util.DerefOr(input.Height, player.Height),
+		Weight:        util.DerefOr(input.Weight, player.Weight),
 	}); err != nil {
-
 		return nil, err
 	}
 
@@ -182,8 +195,8 @@ func (pu *playerUsecase) UpdatePlayerDetails(ctx context.Context, input *UpdateP
 
 	return &UpdatePlayersRes{
 		PlayerID:      player.ID,
+		Code:          player.Code,
 		FullName:      player.FullName,
-		Status:        player.Status,
 		DOB:           player.DateOfBirth,
 		Position:      player.Position,
 		Nationality:   player.Nationality,
@@ -207,11 +220,10 @@ func (pu *playerUsecase) ListPlayer(ctx context.Context, input *ListPlayerReq) (
 	}
 
 	players, total, err := pu.playerRepository.GetPlayers(ctx, &player.ListUserReq{
-		Page:         input.Page,
-		Limit:        input.Limit,
-		PlayerStatus: input.PlayerStatus,
-		Position:     input.Position,
-		Search:       input.Search,
+		Page:     input.Page,
+		Limit:    input.Limit,
+		Position: input.Position,
+		Search:   input.Search,
 	})
 
 	if err != nil {
@@ -227,7 +239,7 @@ func (pu *playerUsecase) ListPlayer(ctx context.Context, input *ListPlayerReq) (
 			FullName:     p.FullName,
 			Position:     p.Position,
 			PreferedFoot: p.PreferredFoot,
-			Status:       p.Status,
+			Code:         p.Code,
 		})
 		presignedUrl, err := pu.ObjectStorage.GetPresignedURL(ctx, pu.ObjectStorageConfig.Bucket, *p.ProfileImageKey, pu.ObjectStorageConfig.PresignedURLExpiry)
 		if err == nil {
@@ -264,15 +276,24 @@ func (pu *playerUsecase) GetPlayer(ctx context.Context, input *GetPlayerReq) (*G
 	if err != nil {
 		return nil, err
 	}
+	var presignedUrl string
+
+	if player.ProfileImageKey != nil {
+		presignedUrl, err = pu.ObjectStorage.GetPresignedURL(ctx, pu.ObjectStorageConfig.Bucket, *player.ProfileImageKey, pu.ObjectStorageConfig.PresignedURLExpiry)
+		if err != nil {
+			pu.logger.Error("failed get image url", "error", err)
+		}
+	}
 
 	return &GetPlayerRes{
 		PlayerID:     player.ID,
+		Code:         player.Code,
+		PresignedUrl: presignedUrl,
 		FullName:     player.FullName,
 		DateOfBirth:  player.DateOfBirth,
 		Position:     player.Position,
 		PreferedFoot: player.PreferredFoot,
 		Nationality:  player.Nationality,
-		Status:       player.Status,
 		Height:       player.Height,
 		Weight:       player.Weight,
 		CreatedAt:    player.CreatedAt,
@@ -297,12 +318,12 @@ func (pu *playerUsecase) UpdateImage(ctx context.Context, input *UpdatePlayerIma
 	}
 
 	Reader := bytes.NewReader(webpBytes)
-	if player.ProfileImageKey == nil {
-		objectName := fmt.Sprintf("/player/%s/logo.webp", player.ID)
+	if player.ProfileImageKey == nil || *player.ProfileImageKey == "" {
+		objectName := storage.BuildObjectName(storage.PlayerProfile, player.ID)
 		player.ProfileImageKey = &objectName
 	}
 
-	key, err := pu.ObjectStorage.Upload(ctx, pu.ObjectStorageConfig.Bucket, *player.ProfileImageKey, Reader, int64(len(webpBytes)), "image/web")
+	key, err := pu.ObjectStorage.Upload(ctx, pu.ObjectStorageConfig.Bucket, *player.ProfileImageKey, Reader, int64(len(webpBytes)), "image/webp")
 
 	if err != nil {
 		return nil, err
@@ -318,7 +339,7 @@ func (pu *playerUsecase) UpdateImage(ctx context.Context, input *UpdatePlayerIma
 	}
 
 	return &UpdatePlayerImageRes{
-		PlayerID:     player.ID.String(),
+		UserID:       player.UserID,
 		PresignedUrl: presignedUrl,
 	}, nil
 
@@ -364,7 +385,7 @@ func (pu *playerUsecase) RemovePlayerImage(ctx context.Context, req *RemovePlaye
 		return nil, err
 	}
 
-	if player.ProfileImageKey == nil {
+	if player.ProfileImageKey == nil || *player.ProfileImageKey == "" {
 		return nil, apperror.NewConflictError("image not added or already deleted")
 	}
 
@@ -394,20 +415,31 @@ func (pu *playerUsecase) PlayerProfile(ctx context.Context, input *PlayerProfile
 		return nil, err
 	}
 
+	var presignedUrl string
+	if player.ProfileImageKey != nil {
+		presignedUrl, err = pu.ObjectStorage.GetPresignedURL(ctx, pu.ObjectStorageConfig.Bucket, *player.ProfileImageKey, pu.ObjectStorageConfig.PresignedURLExpiry)
+		if err != nil {
+			pu.logger.Error("failed get image url", "error", err)
+		}
+
+	}
+
 	return &PlayerProfileRes{
-		PlayerID:     player.ID,
-		FullName:     player.FullName,
-		DateOfBirth:  player.DateOfBirth,
-		Position:     player.Position,
-		PreferedFoot: player.PreferredFoot,
-		Nationality:  player.Nationality,
-		Status:       player.Status,
-		Height:       player.Height,
-		Weight:       player.Weight,
-		CreatedAt:    player.CreatedAt,
+		PlayerID:        player.ID,
+		UserID:          player.UserID,
+		FullName:        player.FullName,
+		ProfileImageUrl: presignedUrl,
+		DateOfBirth:     player.DateOfBirth,
+		Position:        player.Position,
+		PreferedFoot:    player.PreferredFoot,
+		Nationality:     player.Nationality,
+		Height:          player.Height,
+		Weight:          player.Weight,
+		CreatedAt:       player.CreatedAt,
+		Code:            player.Code,
 	}, nil
 }
 
-func (pu *playerUsecase) GetMyTeams(context.Context, *GetMyTeamsReq) (*GetMyTeamsRes, error) { 
+func (pu *playerUsecase) GetMyTeams(context.Context, *GetMyTeamsReq) (*GetMyTeamsRes, error) {
 	return nil, nil
 }

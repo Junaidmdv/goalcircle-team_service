@@ -17,7 +17,7 @@ import (
 type TeamPlayerUsecase interface {
 	ListTeamPlayers(context.Context, *ListTeamPlayersReq) ([]PlayerRes, *PaginateDetails, error)
 	GetTeamPlayer(ctx context.Context, input *GetTeamPlayerReq) (*GetTeamPlayerRes, error)
-	ReleasePlayer(context.Context, *ReleasePlayerReq) (*ReleasePlayerRes, error)  
+	ReleasePlayer(context.Context, *ReleasePlayerReq) (*ReleasePlayerRes, error)
 }
 
 type teamPlayerUsecase struct {
@@ -76,7 +76,7 @@ func (pu *teamPlayerUsecase) ListTeamPlayers(ctx context.Context, input *ListTea
 			TeamMemberID: player.TeamMemberID,
 			FullName:     player.Player.FullName,
 			Position:     player.Player.Position,
-			Status:       player.Player.Status,
+			Status:       player.Status,
 		})
 
 		presignedUrl, err := pu.objectStorage.GetPresignedURL(ctx, pu.objectStorageConfig.Bucket, *player.Player.ProfileImageKey, pu.objectStorageConfig.PresignedURLExpiry)
@@ -117,7 +117,7 @@ func (pu *teamPlayerUsecase) GetTeamPlayer(ctx context.Context, input *GetTeamPl
 		FullName:    player.Player.FullName,
 		DateOfBirth: player.Player.DateOfBirth,
 		Position:    player.Player.Position,
-		Status:      player.Player.Status,
+		Status:      player.Status,
 		CreatedAt:   player.CreatedAt,
 	}, nil
 }
@@ -165,7 +165,7 @@ func (pu *teamPlayerUsecase) ReleasePlayer(ctx context.Context, input *ReleasePl
 		TeamMemberID: playerDetails.TeamMemberID,
 		FullName:     playerDetails.Player.FullName,
 		Position:     playerDetails.Player.Position,
-		Status:       playerDetails.Player.Status,
+		Status:       playerDetails.Status,
 		ReleasedAt:   playerDetails.LeftAt,
 		JoinedAt:     playerDetails.JoinedAt,
 	}, nil

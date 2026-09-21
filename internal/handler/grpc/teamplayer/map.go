@@ -7,19 +7,19 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 )
 
-func toPlayerStatus(status teampb.PlayerStatus) (entity.PlayerStatus, error) {
+func toPlayerStatus(status teampb.PlayerStatus) (entity.TeamPlayerStatus, error) {
 	switch status {
 	case teampb.PlayerStatus_PLAYER_STATUS_ACTIVE:
-		return entity.PlayerStatusActive, nil
+		return entity.TeamPlayerStatusActive, nil
 
 	case teampb.PlayerStatus_PLAYER_STATUS_INACTIVE:
-		return entity.PlayerStatusInactive, nil
+		return entity.TeamPlayerStatusInactive, nil
 
 	case teampb.PlayerStatus_PLAYER_STATUS_SUSPENDED:
-		return entity.PlayerStatusSuspended, nil
+		return entity.TeamPlayerStatusSuspended, nil
 
 	case teampb.PlayerStatus_PLAYER_STATUS_LEFT:
-		return entity.PlayerStatusLeft, nil
+		return entity.TeamPlayerStatusLeft, nil
 
 	default:
 		return "", errors.New("invalid player status")

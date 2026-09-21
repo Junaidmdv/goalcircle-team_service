@@ -34,7 +34,7 @@ func (ph *TeamPlayerHandler) ReleasePlayer(ctx context.Context, input *pb.Releas
 	}
 
 	return &pb.ReleasePlayerRes{
-		Id:           res.ID.String(),
+		PlayerId:           res.ID.String(),
 		TeamMemberId: res.TeamMemberID.String(),
 		FullName:     res.FullName,
 		JerseyNumber: res.JerseyNumber,

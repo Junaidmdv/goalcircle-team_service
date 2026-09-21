@@ -9,7 +9,7 @@ type ListPlayerDetailsReq struct {
 	TeamID       uuid.UUID
 	Page         int32
 	Limit        int32
-	PlayerStatus entity.PlayerStatus
+	PlayerStatus entity.TeamPlayerStatus
 	Position     entity.PlayerPosition
 	Search       string
 }

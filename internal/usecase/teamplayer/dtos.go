@@ -11,7 +11,7 @@ type ListTeamPlayersReq struct {
 	TeamID       string
 	Page         int32
 	Limit        int32
-	PlayerStatus entity.PlayerStatus
+	PlayerStatus entity.TeamPlayerStatus
 	Position     entity.PlayerPosition
 	Search       string
 }
@@ -29,7 +29,7 @@ type PlayerRes struct {
 	FullName     string
 	//JerseyNumber int32
 	Position entity.PlayerPosition
-	Status   entity.PlayerStatus
+	Status   entity.TeamPlayerStatus
 	ImageUrl string
 }
 
@@ -48,7 +48,7 @@ type GetTeamPlayerRes struct {
 	Position     entity.PlayerPosition
 	PreferedFoot entity.PreferredFoot
 	Nationality  string
-	Status       entity.PlayerStatus
+	Status       entity.TeamPlayerStatus
 	CreatedAt    time.Time
 }
 
@@ -64,7 +64,7 @@ type ReleasePlayerRes struct {
 	FullName     string
 	JerseyNumber int32
 	Position     entity.PlayerPosition
-	Status       entity.PlayerStatus
+	Status       entity.TeamPlayerStatus
 	ReleasedAt   time.Time
 	JoinedAt     time.Time
 }

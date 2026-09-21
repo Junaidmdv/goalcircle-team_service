@@ -13,6 +13,7 @@ const (
 	TeamPlayerStatusInactive  TeamPlayerStatus = "inactive"
 	TeamPlayerStatusSuspended TeamPlayerStatus = "suspended"
 	TeamPlayerStatusLeft      TeamPlayerStatus = "left"
+	TeamPlayerStatusInvalid   TeamPlayerStatus = "invalid"
 )
 
 type TeamPlayer struct {

@@ -12,9 +12,9 @@ func GetTeamPlayers(teamID uuid.UUID) func(*gorm.DB) *gorm.DB {
 	}
 }
 
-func filterByPlayerStatus(status entity.PlayerStatus) func(*gorm.DB) *gorm.DB {
+func filterByPlayerStatus(status entity.TeamPlayerStatus) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
-		if status == entity.PlayerStatusInvalid {
+		if status == entity.TeamPlayerStatusInvalid {
 			return db
 		}
 		return db.Where("players.status=?", status)

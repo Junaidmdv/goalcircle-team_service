@@ -72,12 +72,10 @@ func (cg *codeGenerater) GenerateShortName(teamName string, shortWordMax int, up
 				break
 			}
 		}
-		// fallback if no consonant found (e.g. "aeiou" edge case)
 		if !found && len(w) > 1 {
 			result += string(w[1])
 		}
 	} else {
-		// Multiple words -> keep short words whole, else take first letter
 		var sb strings.Builder
 		for _, w := range words {
 			lw := strings.ToLower(w)
@@ -104,7 +102,7 @@ func (cg *codeGenerater) GenerateCode(role string) (string, error) {
 	for i := range b {
 		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(cg.chars))))
 		if err != nil {
-			return "", nil
+			return "", err
 		}
 
 		b[i] = cg.chars[n.Int64()]

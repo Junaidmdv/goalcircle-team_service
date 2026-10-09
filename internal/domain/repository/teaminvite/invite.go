@@ -1,88 +1,80 @@
 package teaminvite
 
-import (
-	"context"
-	"errors"
+// type TeamInviteRepository interface {
+// 	CreateInvitation(context.Context, *entity.TeamInvite) (*entity.TeamInvite, error)
+// 	GetInvitation(context.Context, *uuid.UUID) (*entity.TeamInvite, bool, error)
+// 	GetStaffInvitationByCode(context.Context, string) (*entity.TeamInvite, error)
+// 	UpdateTeamInvite(ctxm context.Context, requestID uuid.UUID, teamInvite *entity.TeamInvite) error
+// 	ExistPendingInvite(ctx context.Context, PlayerID uuid.UUID) (bool, error)
+// }
 
-	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
-	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
-	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
-	"github.com/google/uuid"
-	"gorm.io/gorm"
-)
+// type teamInviteRepository struct {
+// 	db     *gorm.DB
+// 	logger logger.Logger
+// }
 
-type TeamInviteRepository interface {
-	CreateInvitation(context.Context, *entity.TeamInvite) (*entity.TeamInvite, error)
-	GetInvitation(context.Context, *uuid.UUID) (*entity.TeamInvite, bool, error)
-	GetInvitationByCode(context.Context, string) (*entity.TeamInvite, error)
-	UpdateTeamInvite(context.Context, uuid.UUID, *UpdateTeamInviteReq) error
-}
+// func NewTeamMemberInviteRepository(db *gorm.DB, logger logger.Logger) TeamInviteRepository {
+// 	return &teamInviteRepository{
+// 		db:     db,
+// 		logger: logger,
+// 	}
+// }
 
-type teamInviteRepository struct {
-	db     *gorm.DB
-	logger logger.Logger
-}
+// func (tr *teamInviteRepository) CreateInvitation(ctx context.Context, invite *entity.TeamInvite) (*entity.TeamInvite, error) {
+// 	if err := tr.db.WithContext(ctx).Create(invite).Error; err != nil {
+// 		tr.logger.Error("databaser error", "eroror", err)
+// 		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+// 	}
 
-func NewTeamMemberInviteRepository(db *gorm.DB, logger logger.Logger) TeamInviteRepository {
-	return &teamInviteRepository{
-		db:     db,
-		logger: logger,
-	}
-}
+// 	return invite, nil
+// }
 
-func (tr *teamInviteRepository) CreateInvitation(ctx context.Context, invite *entity.TeamInvite) (*entity.TeamInvite, error) {
-	if err := tr.db.WithContext(ctx).Create(invite).Error; err != nil {
-		tr.logger.Error("databaser error", "eroror", err)
-		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
-	}
+// func (tr *teamInviteRepository) GetInvitation(ctx context.Context, teamMemberID *uuid.UUID) (*entity.TeamInvite, bool, error) {
 
-	return invite, nil
-}
+// 	var invite entity.TeamInvite
+// 	result := tr.db.WithContext(ctx).Where("team_member_id=?", teamMemberID).Take(&invite)
 
-func (tr *teamInviteRepository) GetInvitation(ctx context.Context, teamMemberID *uuid.UUID) (*entity.TeamInvite, bool, error) {
+// 	if result.Error != nil {
+// 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+// 			return nil, false, nil
+// 		}
+// 		tr.logger.Error("database error", "error", result.Error, "method", "GetInvitation")
+// 		return nil, false, apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
 
-	var invite entity.TeamInvite
-	result := tr.db.WithContext(ctx).Where("team_member_id=?", teamMemberID).Take(&invite)
+// 	}
 
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, false, nil
-		}
-		tr.logger.Error("database error", "error", result.Error, "method", "GetInvitation")
-		return nil, false, apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+// 	return &invite, true, nil
 
-	}
+// }
 
-	return &invite, true, nil
+// func (tr *teamInviteRepository) GetStaffInvitationByCode(ctx context.Context, code string) (*entity.TeamInvite, error) {
 
-}
+// 	var invite entity.TeamInvite
 
-func (tr *teamInviteRepository) GetInvitationByCode(ctx context.Context, code string) (*entity.TeamInvite, error) {
+// 	result := tr.db.WithContext(ctx).Where("si.invite_code=?", code).
+// 		Joins("JOIN staff_invite_details si ON team_invites.id=si.team_invite_id").
+// 		Take(&invite)
 
-	var invite entity.TeamInvite
+// 	if result.Error != nil {
+// 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+// 			return nil, apperror.NewNotFoundError("invitation not exist")
+// 		}
+// 		tr.logger.Error("database error", "error", result.Error, "method", "GetInvitation")
+// 		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
 
-	result := tr.db.WithContext(ctx).Where("code=?", code).Take(&invite)
+// 	}
 
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, apperror.NewNotFoundError("invalid invite code")
-		}
-		tr.logger.Error("database error", "error", result.Error, "method", "GetInvitation")
-		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+// 	return &invite, nil
+// }
 
-	}
+// func (tr *teamInviteRepository) UpdateTeamInvite(ctx context.Context, inviteID uuid.UUID, teamInvite *entity.TeamInvite) error {
+// 	if err := tr.db.WithContext(ctx).Model(&entity.TeamInvite{}).Where("id=?", teamInvite).Updates(teamInvite).Error; err != nil {
+// 		if errors.Is(err, gorm.ErrRecordNotFound) {
+// 			return apperror.NewNotFoundError("team invitation details not exist")
+// 		}
+// 		tr.logger.Error("database error", "error", err, "method", "repo.updateTeamInvite")
+// 		return apperror.NewInternalError(apperror.InternalErrorMsg, err)
+// 	}
 
-	return &invite, nil
-}
-
-func (tr *teamInviteRepository) UpdateTeamInvite(ctx context.Context, id uuid.UUID, req *UpdateTeamInviteReq) error {
-	if err := tr.db.WithContext(ctx).Where("id=?", id).Updates(map[string]any{
-		"used_id": req.UserID,
-		"is_used": req.IsUsed,
-	}).Error; err != nil {
-		tr.logger.Error("database error", "error", err, "method", "repo.updateTeamInvite")
-		return apperror.NewInternalError(apperror.InternalErrorMsg, err)
-	}
-
-	return nil
-}
+// 	return nil
+// }

@@ -2,12 +2,9 @@ package teammemberuc
 
 import (
 	"context"
-	"errors"
-	"time"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
-	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/datetime"
@@ -17,111 +14,23 @@ import (
 
 type TeamMemberUsecase interface {
 	AddOwner(ctx context.Context, req *AddOwnerReq) (*AddOwnerRes, error)
-	RegisterTeamMember(context.Context, *RegisterTeamMemberReq) (*RegisterTeamMemberRes, error)
-	CompensateRegisterTeamMember(context.Context, *CompensateRegisterTeamMemberReq) error
 	DeleteTeamOwner(ctx context.Context, teamMemberID uuid.UUID, staffID uuid.UUID) error
 }
 
 type teamMemberUsecase struct {
 	teamMemberRepo teammember.TeamMemberRepository
-	teamInviteRepo teaminvite.TeamInviteRepository
 	StaffRepo      staffrepo.StaffRepository
 	logger         logger.Logger
 	dateCalc       datetime.DateCalculator
 }
 
-func NewTeamMemberUsecase(tmr teammember.TeamMemberRepository, ti teaminvite.TeamInviteRepository, staffRepo staffrepo.StaffRepository, logger logger.Logger, datecal datetime.DateCalculator) TeamMemberUsecase {
+func NewTeamMemberUsecase(tmr teammember.TeamMemberRepository, staffRepo staffrepo.StaffRepository, logger logger.Logger, datecal datetime.DateCalculator) TeamMemberUsecase {
 	return &teamMemberUsecase{
 		teamMemberRepo: tmr,
-		teamInviteRepo: ti,
 		logger:         logger,
 		StaffRepo:      staffRepo,
 		dateCalc:       datecal,
 	}
-}
-
-func (tm *teamMemberUsecase) RegisterTeamMember(ctx context.Context, req *RegisterTeamMemberReq) (*RegisterTeamMemberRes, error) {
-
-	userID, err := uuid.Parse(req.UserID)
-	if err != nil {
-		tm.logger.Error("token error", "error", errors.New("invalid user id from token"))
-		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
-	}
-	hasMembership, err := tm.teamMemberRepo.HasUnreleasedMembership(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	if hasMembership {
-		return nil, apperror.NewBadRequestError("user already has membershipt with another team")
-	}
-
-	invite, err := tm.teamInviteRepo.GetInvitationByCode(ctx, req.Code)
-	if err != nil {
-		return nil, err
-	}
-
-	if time.Now().After(invite.ExpiresAt) {
-		return nil, apperror.NewFailedPreCondition(
-			"invitation code expired",
-		)
-	}
-
-	if invite.IsUsed {
-		return nil, apperror.NewFailedPreCondition(
-			"invitation code already used",
-		)
-	}
-
-	if err := tm.teamMemberRepo.UpdateUserID(
-		ctx,
-		invite.TeamMemberID,
-		userID,
-	); err != nil {
-		return nil, err
-	}
-
-	if err := tm.teamInviteRepo.UpdateTeamInvite(
-		ctx,
-		invite.ID,
-		&teaminvite.UpdateTeamInviteReq{
-			UserID: req.UserID,
-			IsUsed: true,
-		},
-	); err != nil {
-		return nil, err
-	}
-
-	member, err := tm.teamMemberRepo.GetTeamMemberByID(
-		ctx,
-		invite.TeamMemberID,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &RegisterTeamMemberRes{
-		InvitationID: invite.ID,
-		TeamMemberID: member.ID,
-		TeamID:       member.TeamID,
-		UserID:       userID,
-		Status:       string(member.Status),
-		JoinedAt:     member.JoinedAt,
-	}, nil
-}
-
-func (tm *teamMemberUsecase) CompensateRegisterTeamMember(ctx context.Context, req *CompensateRegisterTeamMemberReq) error {
-	if err := tm.teamMemberRepo.UpdateUserID(ctx, req.TeamMemberID, req.UserID); err != nil {
-		return err
-	}
-	if err := tm.teamInviteRepo.UpdateTeamInvite(ctx, req.InvitationID, &teaminvite.UpdateTeamInviteReq{
-		UserID: "",
-		IsUsed: false,
-	}); err != nil {
-		return err
-
-	}
-	return nil
 }
 
 func (tm *teamMemberUsecase) AddOwner(ctx context.Context, req *AddOwnerReq) (*AddOwnerRes, error) {
@@ -130,10 +39,16 @@ func (tm *teamMemberUsecase) AddOwner(ctx context.Context, req *AddOwnerReq) (*A
 		return nil, apperror.NewBadRequestError("invalid team id")
 	}
 
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		return nil, apperror.NewBadRequestError("invalid user id")
+	}
+
 	teamMember, err := tm.teamMemberRepo.AddTeamMember(ctx, &entity.TeamMember{
 		ID:     uuid.New(),
 		TeamID: teamID,
-		Status: req.TeamMemberStatus,
+		Role:   entity.TeamMemberStaff,
+		UserID: userID,
 	})
 
 	if err != nil {
@@ -177,28 +92,3 @@ func (tm *teamMemberUsecase) DeleteTeamOwner(ctx context.Context, teamMemberID u
 
 }
 
-func (tm *teamMemberUsecase) LeaveTeam(ctx context.Context, req *LeaveTeamReq) (*LeaveTeamRes, error) {
-
-	teamID, err := uuid.Parse(req.TeamID)
-	if err != nil {
-		return nil, apperror.NewInvalidArgumentError("invalid team id")
-	}
-
-	userID, err := uuid.Parse(req.UserID)
-	if err != nil {
-		return nil, apperror.NewBadRequestError("invalid user id")
-	}
-
-	teamMember, err := tm.teamMemberRepo.GetTeamMember(ctx, teamID, userID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if teamMember.Status == entity.TeamMemberStatusRelease && teamMember.ReleasedAt.IsZero() {
-		return nil, apperror.NewBadRequestError("team member can leave the team only after being released")
-	}
-
-	return nil, nil
-
-}

@@ -15,4 +15,5 @@ const (
 	PermissionCreateInvite       Permission = "CREATE_INVITE"
 	PermissionUpdatePlayerStatus Permission = "UPDATE_PLAYER_STAT"
 	PermissionReleasePlayer      Permission = "RELEASE_PLAYER"
+	PermissionCancelPlayerInvite Permission = "CANCEL_PLAYER_INVITATION"
 )

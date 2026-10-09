@@ -10,9 +10,10 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/player"
 	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
+	staff_invite_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staffinvite"
 	team_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
-	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
 	teammember_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teamplayer"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/transaction"
 	team_handler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/team"
 	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
@@ -23,10 +24,8 @@ import (
 	playeruc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/player"
 	staffuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
 	team_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
-	inviteuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teaminvite"
 	teammemberuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/teammember"
 
-	inviteHandler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/invite"
 	playerHandler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/player"
 	staffHandler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/staff"
 
@@ -85,14 +84,13 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	TeamMemberRepository := teammember_repo.NewTeamMemberRepository(psqldb.DB, gs.logger)
 	staffRepository := staffrepo.NewStaffRepository(psqldb.DB, gs.logger)
 	playerRepo := player.NewPlayerRepository(psqldb.DB, gs.logger)
-	teamInviteRepo := teaminvite.NewTeamMemberInviteRepository(psqldb.DB, gs.logger)
+	staffInviteRepo := staff_invite_repo.NewStaffInviteRepository(*psqldb.DB, gs.logger)
+	teamPlayerRepo := teamplayer.NewTeamPlayerRepository(psqldb.DB, gs.logger)
 
-	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater, TeamMemberRepository, playerRepo, objectStorage, gs.Config.StorageConfig, datecalculater, transactionHandler, staffRepository)
-	teamMemberUc := teammemberuc.NewTeamMemberUsecase(TeamMemberRepository, teamInviteRepo, staffRepository, gs.logger, datecalculater)
-	teamStaffUc := staffuc.NewTeamStaffUsecase(TeamMemberRepository, staffRepository, teamRepository, datecalculater, objectStorage, gs.Config.StorageConfig, gs.logger)
-	playerUc := playeruc.NewPlayerUsecase(playerRepo, TeamMemberRepository, teamRepository, staffRepository, gs.logger, objectStorage, gs.Config.StorageConfig, codeGenerater)
-	teaminviteUc := inviteuc.NewTeamInviteUsecase(teamInviteRepo, codeGenerater, TeamMemberRepository, staffRepository)
-
+	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater, TeamMemberRepository, teamPlayerRepo, playerRepo, objectStorage, gs.Config.StorageConfig, datecalculater, transactionHandler, staffRepository)
+	teamMemberUc := teammemberuc.NewTeamMemberUsecase(TeamMemberRepository, staffRepository, gs.logger, datecalculater)
+	teamStaffUc := staffuc.NewTeamStaffUsecase(TeamMemberRepository, staffRepository, teamRepository, staffInviteRepo, teamPlayerRepo, datecalculater, objectStorage, gs.Config.StorageConfig, codeGenerater, gs.logger)
+	playerUc := playeruc.NewPlayerUsecase(playerRepo, TeamMemberRepository, teamRepository, staffRepository, teamPlayerRepo, gs.logger, objectStorage, gs.Config.StorageConfig, codeGenerater)
 	userclient, err := userclientcon.NewUserGRPCClient(gs.Config.UserSrv, gs.logger)
 	if err != nil {
 		return err
@@ -101,16 +99,16 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	userAuthpb := userclient_pb.NewAuthServiceClient(userclient.Conn)
 
 	teamSaga := teamsaga.NewTeamSagaMaker(teamUsecase, teamMemberUc, userAuthpb, teamStaffUc, gs.logger)
-	teamMemberSaga := teamsaga.NewTeamMemberSaga(teamUsecase, teamMemberUc, userAuthpb, gs.logger)
-	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut, validater, teamMemberSaga)
-	playerHandler := playerHandler.NewPlayerHandler(playerUc, gs.logger, &gs.Config.Server.TimeOut, validater)
-	staffHandler := staffHandler.NewStaffHandler(teamStaffUc, gs.Config.Server.TimeOut,validater)
-	inviteHandler := inviteHandler.NewTeamInviteHandler(teaminviteUc, gs.Config.Server.TimeOut)
+	joinStaffsaga := teamsaga.NewJoinStaffSaga(teamStaffUc, userAuthpb, gs.logger)
+	playersaga := teamsaga.NewPlayerSaga(playerUc, userAuthpb, gs.logger)
+
+	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut, validater)
+	playerHandler := playerHandler.NewPlayerHandler(playerUc, gs.logger, &gs.Config.Server.TimeOut, validater, playersaga)
+	staffHandler := staffHandler.NewStaffHandler(teamStaffUc, gs.Config.Server.TimeOut, validater, joinStaffsaga)
 
 	teamv1.RegisterTeamServiceServer(gs.Server, teamHandler)
 	teamv1.RegisterPlayerServiceServer(gs.Server, playerHandler)
 	teamv1.RegisterStaffServiceServer(gs.Server, staffHandler)
-	teamv1.RegisterTeamInviteServer(gs.Server, inviteHandler)
 
 	return nil
 }

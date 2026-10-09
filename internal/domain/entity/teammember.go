@@ -12,14 +12,14 @@ const (
 	UNSPECIFIED UserRole = "unspecified"
 	ORGAINISER  UserRole = "organiser"
 	TEAM        UserRole = "team"
+	PLAYER      UserRole = "player"
 )
 
 type TeamMemberStatus string
 
 const (
-	TeamMemberStatusActive   TeamMemberStatus = "ACTIVE"
-	TeamMemberStatusInactive TeamMemberStatus = "INACTIVE"
-	TeamMemberStatusRelease  TeamMemberStatus = "RELEASED"
+	TeamMemberStatusActive TeamMemberStatus = "active"
+	TeamMemberStatusLeft   TeamMemberStatus = "left"
 )
 
 type TeamMemberRole string
@@ -30,16 +30,14 @@ const (
 )
 
 type TeamMember struct {
-	ID         uuid.UUID `gorm:"primaryKey"`
-	TeamID     uuid.UUID
-	UserID     uuid.UUID
-	Status     TeamMemberStatus
-	JoinedAt   time.Time
-	ReleasedAt time.Time
-	LeftAt     time.Time
+	ID         uuid.UUID `gorm:"type:uuid;primaryKey"`
+	TeamID     uuid.UUID `gorm:"type:uuid;not null"`
+	UserID     uuid.UUID `gorm:"type:uuid;not null"`
 	Role       TeamMemberRole
-	Player     *Player     `gorm:"foreignKey:TeamMemberID"`
-	Staff      *Staff      `gorm:"foreignKey:TeamMemberID"`
-	TeamInvite *TeamInvite `gorm:"foreignKey:TeamMemberID"`
-	Team       Team        `gorm:"foreignKey:TeamID;references:ID;"`
+	Status     TeamMemberStatus
+	Team       Team        `gorm:"foreignKey:TeamID;references:ID"`
+	TeamPlayer *TeamPlayer `gorm:"foreignKey:TeamMemberID;references:ID"`
+	Staff      *Staff      `gorm:"foreignKey:TeamMemberID;references:ID"`
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }

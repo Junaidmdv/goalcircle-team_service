@@ -9,10 +9,11 @@ func (db *postgresDB) Migration() error {
 		&entity.Team{},
 		&entity.TeamMember{},
 		&entity.Player{},
-		&entity.TeamInvite{},
 		&entity.Staff{},
-		&entity.StaffInviteDetails{}, 
-		&entity.TeamPlayer{},
+		&entity.StaffInvite{}, 
+		&entity.TeamPlayer{}, 
+		&entity.Player{}, 
+		&entity.PlayerTeamInvite{}, 
 	); err != nil {
 		return err
 	}

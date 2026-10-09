@@ -14,7 +14,6 @@ type AddOwnerReq struct {
 	Role             entity.StaffRole
 	Designation      entity.StaffDesignation
 	DOB              time.Time
-	TeamMemberStatus entity.TeamMemberStatus
 }
 
 type AddOwnerRes struct {

@@ -13,6 +13,7 @@ var SquadPermission = map[entity.StaffDesignation]map[Permission]struct{}{
 		PermissionAppointCaptain:     {},
 		PermissionAppointViceCaptain: {},
 		PermissionReleasePlayer:      {},
+		PermissionCancelPlayerInvite: {},
 	},
 
 	entity.StaffDesignationManager: {
@@ -24,6 +25,7 @@ var SquadPermission = map[entity.StaffDesignation]map[Permission]struct{}{
 		PermissionAppointCaptain:     {},
 		PermissionAppointViceCaptain: {},
 		PermissionReleasePlayer:      {},
+		PermissionCancelPlayerInvite: {},
 	},
 
 	entity.StaffDesignationHeadCoach: {

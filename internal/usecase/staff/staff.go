@@ -13,7 +13,6 @@ import (
 	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
 	staff_invite_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staffinvite"
 	teamrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
-	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teaminvite"
 	teamplayerrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teamplayer"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
@@ -44,7 +43,6 @@ type StaffUsecase interface {
 type staffUsecase struct {
 	teamMemberRepo  teammember.TeamMemberRepository
 	staffInviteRepo staff_invite_repo.StaffInviteRepository
-	teamInviteRepo  teaminvite.TeamInviteRepository
 	staffRepo       staffrepo.StaffRepository
 	teamRepo        teamrepo.TeamRepository
 	teamPlayerRepo  teamplayerrepo.TeamPlayerRepository
@@ -58,7 +56,6 @@ type staffUsecase struct {
 func NewTeamStaffUsecase(tm teammember.TeamMemberRepository,
 	sr staffrepo.StaffRepository,
 	tmrepo teamrepo.TeamRepository,
-	teamInviteRepo teaminvite.TeamInviteRepository,
 	staffInviteRepo staff_invite_repo.StaffInviteRepository,
 	teamplayerRepo teamplayerrepo.TeamPlayerRepository,
 	date datetime.DateCalculator,
@@ -69,7 +66,6 @@ func NewTeamStaffUsecase(tm teammember.TeamMemberRepository,
 	return &staffUsecase{
 		teamMemberRepo:  tm,
 		staffRepo:       sr,
-		teamInviteRepo:  teamInviteRepo,
 		staffInviteRepo: staffInviteRepo,
 		teamRepo:        tmrepo,
 		teamPlayerRepo:  teamplayerRepo,
@@ -124,29 +120,17 @@ func (su *staffUsecase) AddStaff(ctx context.Context, req *AddStaffReq) (*AddSta
 		return nil, apperror.NewInternalError("failed to generate code", err)
 	}
 
-	invite, err := su.teamInviteRepo.CreateInvitation(ctx, &entity.TeamInvite{
-		ID:            uuid.New(),
-		TeamID:        teamID,
-		InvitedUserID: userID,
-		InviteType:    entity.StaffInvite,
-		Status:        entity.Pending,
-		InviteCode:    code,
-		ExpiresAt:     time.Now().Add(time.Hour * 24 * entity.InvitationTime),
-		CreatedAt:     time.Now(),
+	staff, err := su.staffInviteRepo.AddStaffDetails(ctx, &entity.StaffInvite{
+		ID:          uuid.New(),
+		TeamID:      teamID,
+		FullName:    req.FullName,
+		Role:        req.Role,
+		Designation: req.Designation,
+		PhoneNume:   req.PhoneNum,
+		InviteCode:  code,
+		ExpiresAt:   time.Now().Add(time.Hour * 24 * entity.InvitationTime),
 	})
-
 	if err != nil {
-		return nil, err
-	}
-
-	if err := su.staffInviteRepo.AddStaffDetails(ctx, &entity.StaffInviteDetails{
-		ID:           uuid.New(),
-		TeamInviteID: invite.ID,
-		FullName:     req.FullName,
-		Role:         req.Role,
-		Designation:  req.Designation,
-		PhoneNume:    req.PhoneNum,
-	}); err != nil {
 		return nil, err
 	}
 
@@ -155,6 +139,7 @@ func (su *staffUsecase) AddStaff(ctx context.Context, req *AddStaffReq) (*AddSta
 		FullName:    req.FullName,
 		Role:        req.Role,
 		Designation: req.Designation,
+		Expiredat:   staff.ExpiresAt,
 	}, nil
 }
 
@@ -186,7 +171,7 @@ func (su *staffUsecase) JoinStaff(ctx context.Context, req *JoinStaffReq) (*Join
 		)
 	}
 
-	invite, err := su.teamInviteRepo.GetInvitationByCode(ctx, req.Code)
+	invite, err := su.staffInviteRepo.GetStaffInvitationByCode(ctx, req.Code)
 	if err != nil {
 		return nil, err
 	}
@@ -197,23 +182,18 @@ func (su *staffUsecase) JoinStaff(ctx context.Context, req *JoinStaffReq) (*Join
 		)
 	}
 
-	if invite.Status != entity.Pending {
+	if invite.IsUsed {
 		return nil, apperror.NewFailedPreCondition(
 			"invitation code already used",
 		)
 	}
 
-	if err := su.teamInviteRepo.UpdateTeamInvite(
-		ctx,
-		invite.ID,
-		userID,
-		entity.Accepted,
-	); err != nil {
+	staffDetail, err := su.staffInviteRepo.GetStaffDetails(ctx, invite.ID)
+	if err != nil {
 		return nil, err
 	}
 
-	staffDetail, err := su.staffInviteRepo.GetStaffDetails(ctx, invite.ID)
-	if err != nil {
+	if err := su.staffInviteRepo.MarkUsedStaffInvitation(ctx, staffDetail.ID); err != nil {
 		return nil, err
 	}
 
@@ -251,17 +231,13 @@ func (su *staffUsecase) JoinStaff(ctx context.Context, req *JoinStaffReq) (*Join
 
 func (su *staffUsecase) CompensateJoinStaff(ctx context.Context, req ComponsateJoinStaffReq) error {
 
-	if err := su.teamInviteRepo.UpdateTeamInvite(
-		ctx,
-		req.InviteID,
-		uuid.Nil,
-		entity.Pending,
-	); err != nil {
+
+	if err := su.staffInviteRepo.MarkUsedStaffInvitation(ctx, req.InviteID); err != nil {
 		return err
 	}
 
 	if err := su.teamMemberRepo.DeleteTeamMemberByID(ctx, req.TeamMemberID); err != nil {
-		return nil
+		return err
 	}
 
 	if err := su.staffRepo.DeleteStaff(ctx, req.StaffID); err != nil {
@@ -549,7 +525,7 @@ func (su *staffUsecase) ListTeamStaff(ctx context.Context, req *ListTeamStaffReq
 		totalPage += 1
 	}
 
-	for i, s := range res {
+	for _, s := range res {
 		staff = append(staff, StaffDetails{
 			StaffID:      s.ID,
 			TeamMemberID: s.TeamMemberID,
@@ -558,12 +534,14 @@ func (su *staffUsecase) ListTeamStaff(ctx context.Context, req *ListTeamStaffReq
 			Designation:  string(s.Designation),
 			Status:       string(s.Status),
 		})
-
-		presignedUrl, err := su.objstore.GetPresignedURL(ctx, su.objcfg.Bucket, *s.ImageKey, su.objcfg.PresignedURLExpiry)
-		if err == nil {
-			staff[i].PresignedUrl = presignedUrl
+		if s.ImageKey != nil && *s.ImageKey != "" {
+			presignedUrl, err := su.objstore.GetPresignedURL(ctx, su.objcfg.Bucket, *s.ImageKey, su.objcfg.PresignedURLExpiry)
+			if err != nil {
+				su.logger.Error("object storage error", "error", err)
+			} else {
+				s.ImageKey = &presignedUrl
+			}
 		}
-
 	}
 
 	return &ListTeamStaffRes{

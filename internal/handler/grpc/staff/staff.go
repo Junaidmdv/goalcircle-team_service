@@ -73,38 +73,42 @@ func (sh *StaffHandler) AddStaff(ctx context.Context, req *pb.AddStaffReq) (*pb.
 }
 
 func (sh *StaffHandler) JoinStaff(ctx context.Context, req *pb.JoinStaffReq) (*pb.JoinStaffRes, error) {
-	res,err:=sh.joinsaga.RegisterStaff(ctx, &teamsaga.JoinStaffSagaState{
-		UserID:       req.UserId,
-		Code:         req.Code,
-		Role:         entity.TEAM,
-		RefreshToken: req.RefreshToken,
-	}) 
+	res, err := sh.joinsaga.RegisterStaff(ctx, &teamsaga.JoinStaffSagaState{
+		JoinStaffReq: &staffuc.JoinStaffReq{
+			UserID: req.UserId,
+			Code:   req.Code,
+		},
+		AddUserRoleReq: &teamsaga.AddUserRoleReq{
+			UserID:       req.UserId,
+			Role:         string(entity.TEAM),
+			RefreshToken: req.RefreshToken,
+		},
+	})
 
-	if err != nil{
-		return nil,apperror.GRPCStatus(err)
-	} 
+	if err != nil {
+		return nil, apperror.GRPCStatus(err)
+	}
 
-	return  &pb.JoinStaffRes{
+	return &pb.JoinStaffRes{
 		Staff: &teamv1.JoinStaffRes_StaffDetails{
-			StaffId: res.StaffRes.ID.String(), 
-			TeamMemberId: res.StaffRes.TeamMemberID.String(), 
-			UserId: res.StaffRes.UserID.String(), 
-			FullName: res.StaffRes.FullName, 
-			Role: res.StaffRes.Role, 
-			Designation: res.StaffRes.Designatin,
-			CreatedAt: timestamppb.New(res.StaffRes.CreatedAT),
-		}, 
+			StaffId:      res.JoinStaffRes.ID.String(),
+			TeamMemberId: res.JoinStaffRes.TeamMemberID.String(),
+			UserId:       res.JoinStaffRes.UserID.String(),
+			FullName:     res.JoinStaffRes.FullName,
+			Role:         res.JoinStaffRes.Role,
+			Designation:  res.JoinStaffRes.Designatin,
+			CreatedAt:    timestamppb.New(res.JoinStaffRes.CreatedAT),
+		},
 		User: &teamv1.JoinStaffRes_UserResponse{
-			SessionId: res.AddUserRes.SessionID, 
-			UserId: res.AddUserRes.UserID, 
-			Email: res.AddUserRes.Email, 
-			AccessToken: res.AddUserRes.AccessToken, 
-			AccessTokenExpiry: timestamppb.New(res.AddUserRes.AccessTokenExpiry), 
-			RefreshToken: res.AddUserRes.RefreshToken,  
-			RefreshTokenExpiry: timestamppb.New(res.AddUserRes.RefreshTokenExpiry),
-
-		}, 
-	},nil
+			SessionId:          res.AddUserRoleRes.SessionID,
+			UserId:             res.AddUserRoleRes.UserID,
+			Email:              res.AddUserRoleRes.Email,
+			AccessToken:        res.AddUserRoleRes.AccessToken,
+			AccessTokenExpiry:  timestamppb.New(res.AddUserRoleRes.AccessTokenExpiry),
+			RefreshToken:       res.AddUserRoleRes.RefreshToken,
+			RefreshTokenExpiry: timestamppb.New(res.AddUserRoleRes.RefreshTokenExpiry),
+		},
+	}, nil
 }
 
 func (tm *StaffHandler) ListTeamStaff(ctx context.Context, input *pb.ListTeamStaffReq) (*pb.ListTeamStaffRes, error) {

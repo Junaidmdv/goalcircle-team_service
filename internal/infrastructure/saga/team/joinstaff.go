@@ -2,11 +2,12 @@ package teamsaga
 
 import (
 	"context"
+	"errors"
 
 	usrclient "github.com/Junaidmdv/goalcircle-protos/user/v1"
-	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga"
 	staffuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 )
 
@@ -24,13 +25,10 @@ type joinStaffSaga struct {
 }
 
 type JoinStaffSagaState struct {
-	UserID       string
-	Code         string
-	Role         entity.UserRole
-	RefreshToken string
-
-	StaffRes   *staffuc.JoinStaffRes
-	AddUserRes *AddUserRoleRes
+	JoinStaffReq   *staffuc.JoinStaffReq
+	JoinStaffRes   *staffuc.JoinStaffRes
+	AddUserRoleReq *AddUserRoleReq
+	AddUserRoleRes *AddUserRoleRes
 }
 
 func NewJoinStaffSaga(
@@ -45,37 +43,24 @@ func NewJoinStaffSaga(
 	}
 }
 
-func (tm *joinStaffSaga) RegisterStaff(
-	ctx context.Context,
-	state *JoinStaffSagaState,
-) (*JoinStaffSagaState, error) {
+func (tm *joinStaffSaga) RegisterStaff(ctx context.Context, state *JoinStaffSagaState) (*JoinStaffSagaState, error) {
 
 	steps := []saga.SagaStep{
-
 
 		{
 			Name: "register staff",
 
-			Action: func(
-				ctx context.Context,
-				sagaState interface{},
-			) error {
+			Action: func(ctx context.Context, sagaState interface{}) error {
 
 				r := sagaState.(*JoinStaffSagaState)
 
-				res, err := tm.staffUc.JoinStaff(
-					ctx,
-					&staffuc.JoinStaffReq{
-						UserID: r.UserID,
-						Code:   r.Code,
-					},
-				)
+				res, err := tm.staffUc.JoinStaff(ctx, state.JoinStaffReq)
 
 				if err != nil {
 					return err
 				}
 
-				r.StaffRes = res
+				r.JoinStaffRes = res
 
 				return nil
 			},
@@ -87,80 +72,66 @@ func (tm *joinStaffSaga) RegisterStaff(
 
 				r := sagaState.(*JoinStaffSagaState)
 
-				if r.StaffRes == nil {
+				if r.JoinStaffRes == nil {
 					return nil
 				}
 
 				return tm.staffUc.CompensateJoinStaff(
 					ctx,
 					staffuc.ComponsateJoinStaffReq{
-						StaffID:      r.StaffRes.ID,
-						TeamMemberID: r.StaffRes.TeamMemberID,
-						InviteID:     r.StaffRes.InviteID,
+						StaffID:      r.JoinStaffRes.ID,
+						TeamMemberID: r.JoinStaffRes.TeamMemberID,
+						InviteID:     r.JoinStaffRes.InviteID,
 					},
 				)
 			},
 		},
 
-
-
 		{
-			Name: "update user role",
-
-			Action: func(
-				ctx context.Context,
-				sagaState interface{},
-			) error {
-
+			Name: "update staff role",
+			Action: func(ctx context.Context, sagaState interface{}) error {
 				r := sagaState.(*JoinStaffSagaState)
-
-				res, err := tm.userclient.AddUserRole(
-					ctx,
-					&usrclient.AddUserRoleReq{
-						UserId:       r.UserID,
-						Role:         string(r.Role),
-						RefreshToken: r.RefreshToken,
-					},
-				)
+				res, err := tm.userclient.AddUserRole(ctx, &usrclient.AddUserRoleReq{
+					UserId:       r.AddUserRoleReq.UserID,
+					Role:         r.AddUserRoleReq.Role,
+					RefreshToken: r.AddUserRoleReq.RefreshToken,
+				})
 
 				if err != nil {
 					return err
 				}
-
-				r.AddUserRes = &AddUserRoleRes{
+				r.AddUserRoleRes = &AddUserRoleRes{
 					SessionID:          res.SessionId,
 					UserID:             res.UserId,
 					Email:              res.Email,
 					AccessToken:        res.AccessToken,
 					AccessTokenExpiry:  res.AccessTokenExpiry.AsTime(),
 					RefreshToken:       res.RefreshToken,
-					RefreshTokenExpiry: res.RefreshTokenExpiry.AsTime(),
+					RefreshTokenExpiry: res.AccessTokenExpiry.AsTime(),
 				}
 
 				return nil
 			},
+			Compensate: func(ctx context.Context, sagaState interface{}) error {
 
-			Compensate: func(
-				ctx context.Context,
-				sagaState interface{},
-			) error {
+				r, ok := sagaState.(*JoinStaffSagaState)
+				if !ok {
+					return apperror.NewInternalError(apperror.InternalErrorMsg, errors.New("invalid saga data"))
+				}
 
-				r := sagaState.(*JoinStaffSagaState)
+				_, err := tm.userclient.RemoveUserRole(ctx, &usrclient.RemoveUserRoleReq{
+					UserId:       r.AddUserRoleReq.UserID,
+					RefreshToken: r.AddUserRoleReq.RefreshToken,
+				})
 
-				_, err := tm.userclient.RemoveUserRole(
-					ctx,
-					&usrclient.RemoveUserRoleReq{
-						UserId:       r.UserID,
-						RefreshToken: r.RefreshToken,
-					},
-				)
+				if err != nil {
+					return err
+				}
 
-				return err
+				return nil
 			},
 		},
 	}
-
-
 
 	orchestrator := saga.NewOrchestrator(
 		steps,

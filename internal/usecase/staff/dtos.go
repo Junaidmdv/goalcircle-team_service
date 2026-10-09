@@ -21,6 +21,7 @@ type AddStaffRes struct {
 	FullName    string
 	Role        entity.StaffRole
 	Designation entity.StaffDesignation
+	Expiredat   time.Time
 }
 
 type JoinStaffReq struct {
@@ -41,8 +42,8 @@ type JoinStaffRes struct {
 }
 
 type ComponsateJoinStaffReq struct {
-	StaffID    uuid.UUID
-	TeamMemberID uuid.UUID 
+	StaffID      uuid.UUID
+	TeamMemberID uuid.UUID
 	InviteID     uuid.UUID
 }
 

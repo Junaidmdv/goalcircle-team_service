@@ -12,8 +12,10 @@ import (
 )
 
 type StaffInviteRepository interface {
-	AddStaffDetails(ctx context.Context, staff *entity.StaffInviteDetails) error
-	GetStaffDetails(ctx context.Context, teamInviteID uuid.UUID) (*entity.StaffInviteDetails, error)
+	AddStaffDetails(ctx context.Context, staff *entity.StaffInvite) (*entity.StaffInvite, error)
+	GetStaffDetails(ctx context.Context, staffInviteID uuid.UUID) (*entity.StaffInvite, error)
+	GetStaffInvitationByCode(ctx context.Context, code string) (*entity.StaffInvite, error)
+	MarkUsedStaffInvitation(ctx context.Context, staffinviteID uuid.UUID) error
 }
 
 type staffInviteRepository struct {
@@ -28,23 +30,22 @@ func NewStaffInviteRepository(db gorm.DB, logger logger.Logger) StaffInviteRepos
 	}
 }
 
-func (r *staffInviteRepository) AddStaffDetails(ctx context.Context, staff *entity.StaffInviteDetails) error {
+func (r *staffInviteRepository) AddStaffDetails(ctx context.Context, staff *entity.StaffInvite) (*entity.StaffInvite, error) {
 
 	if err := r.db.WithContext(ctx).Create(staff).Error; err != nil {
 		r.logger.Error("database error", "error", err, "details", "failed to add temp staff details")
-		return apperror.NewInternalError(apperror.InternalErrorMsg, err)
+		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
 	}
-	return nil
+	return staff, nil
 }
 
-func (r *staffInviteRepository) GetStaffDetails(ctx context.Context, teamInviteID uuid.UUID) (*entity.StaffInviteDetails, error) {
+func (r *staffInviteRepository) GetStaffDetails(ctx context.Context, staffInviteID uuid.UUID) (*entity.StaffInvite, error) {
 
-	var details entity.StaffInviteDetails
+	var details entity.StaffInvite
 
 	err := r.db.WithContext(ctx).
-		Model(&entity.StaffInviteDetails{}).
-		Joins("JOIN team_invites ti ON ti.id = staff_invite_details.invite_id").
-		Where("ti.id = ?", teamInviteID).
+		Model(&entity.StaffInvite{}).
+		Where("id = ?", staffInviteID).
 		First(&details).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -54,4 +55,30 @@ func (r *staffInviteRepository) GetStaffDetails(ctx context.Context, teamInviteI
 		return nil, err
 	}
 	return &details, nil
+}
+
+func (r *staffInviteRepository) GetStaffInvitationByCode(ctx context.Context, code string) (*entity.StaffInvite, error) {
+
+	var staffinvite entity.StaffInvite
+
+	if err := r.db.WithContext(ctx).Where("code=?", code).Take(&staffinvite).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.NewNotFoundError("code is not exist")
+		}
+		return nil, apperror.NewInternalError(apperror.InternalErrorMsg, err)
+	}
+
+	return &staffinvite, nil
+}
+
+func (r *staffInviteRepository) MarkUsedStaffInvitation(ctx context.Context, staffinviteID uuid.UUID) error {
+	result := r.db.WithContext(ctx).Where("id=?", staffinviteID).Update("is_used", true)
+	if result.Error != nil {
+		return apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return apperror.NewNotFoundError("failed to update staff")
+	}
+	return nil
 }

@@ -11,6 +11,7 @@ type Config struct {
 	Postgres      *PostgresConfig
 	UserSrv       *UserService
 	StorageConfig *ObjectStorageConfig
+	NatsConfig    *NatsConfig
 }
 
 type ConfigBuilder interface {
@@ -18,6 +19,7 @@ type ConfigBuilder interface {
 	WithPostgres() ConfigBuilder
 	WithUserService() ConfigBuilder
 	WithObjectStorage() ConfigBuilder
+	WithNats() ConfigBuilder
 	Build() (*Config, []error)
 }
 

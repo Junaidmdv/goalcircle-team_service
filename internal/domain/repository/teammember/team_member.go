@@ -226,6 +226,7 @@ func (r *teamMemberRepository) DeleteTeamMemberByID(
 
 	err := r.db.WithContext(ctx).
 		Where("id = ?", teamMemberID).
+		Unscoped().
 		Delete(&entity.TeamMember{}).
 		Error
 

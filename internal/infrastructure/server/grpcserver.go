@@ -4,23 +4,26 @@ import (
 	"fmt"
 	"net"
 
-	teamv1 "github.com/Junaidmdv/goalcircle-protos/team/v1"
+	teampb "github.com/Junaidmdv/goalcircle-protos/team/v1"
 	userclient_pb "github.com/Junaidmdv/goalcircle-protos/user/v1"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/player"
+	playerinviterepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/playerinvite"
 	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
 	staff_invite_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staffinvite"
 	team_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
 	teammember_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teamplayer"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/transaction"
+	playerinvitehandler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/invite"
 	team_handler "github.com/Junaidmdv/goalcircle-team_service/internal/handler/grpc/team"
 	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
 	postgres "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/persistence/postgres"
 	teamsaga "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/saga/team"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/storage"
 	userclientcon "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/userclient"
+	playerinviteuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/invite"
 	playeruc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/player"
 	staffuc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/staff"
 	team_uc "github.com/Junaidmdv/goalcircle-team_service/internal/usecase/team"
@@ -86,11 +89,13 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	playerRepo := player.NewPlayerRepository(psqldb.DB, gs.logger)
 	staffInviteRepo := staff_invite_repo.NewStaffInviteRepository(*psqldb.DB, gs.logger)
 	teamPlayerRepo := teamplayer.NewTeamPlayerRepository(psqldb.DB, gs.logger)
+	playerInviteRepo := playerinviterepo.NewPlayerInviteRepository(psqldb.DB, gs.logger)
 
 	teamUsecase := team_uc.NewTeamUsecase(teamRepository, gs.logger, codeGenerater, TeamMemberRepository, teamPlayerRepo, playerRepo, objectStorage, gs.Config.StorageConfig, datecalculater, transactionHandler, staffRepository)
 	teamMemberUc := teammemberuc.NewTeamMemberUsecase(TeamMemberRepository, staffRepository, gs.logger, datecalculater)
 	teamStaffUc := staffuc.NewTeamStaffUsecase(TeamMemberRepository, staffRepository, teamRepository, staffInviteRepo, teamPlayerRepo, datecalculater, objectStorage, gs.Config.StorageConfig, codeGenerater, gs.logger)
 	playerUc := playeruc.NewPlayerUsecase(playerRepo, TeamMemberRepository, teamRepository, staffRepository, teamPlayerRepo, gs.logger, objectStorage, gs.Config.StorageConfig, codeGenerater)
+	playerInviteUc := playerinviteuc.NewPlayerInviteUsecase(staffRepository, teamPlayerRepo, playerInviteRepo, playerRepo, objectStorage, TeamMemberRepository)
 	userclient, err := userclientcon.NewUserGRPCClient(gs.Config.UserSrv, gs.logger)
 	if err != nil {
 		return err
@@ -105,10 +110,12 @@ func (gs *GRPCServer) BootstrapSetup() error {
 	teamHandler := team_handler.NewTeamHandler(teamUsecase, teamSaga, gs.Config.Server.TimeOut, validater)
 	playerHandler := playerHandler.NewPlayerHandler(playerUc, gs.logger, &gs.Config.Server.TimeOut, validater, playersaga)
 	staffHandler := staffHandler.NewStaffHandler(teamStaffUc, gs.Config.Server.TimeOut, validater, joinStaffsaga)
+	playerInviteHandler := playerinvitehandler.NewPlayerInviteHandler(validater, playerInviteUc, gs.Config.Server.TimeOut)
 
-	teamv1.RegisterTeamServiceServer(gs.Server, teamHandler)
-	teamv1.RegisterPlayerServiceServer(gs.Server, playerHandler)
-	teamv1.RegisterStaffServiceServer(gs.Server, staffHandler)
+	teampb.RegisterTeamServiceServer(gs.Server, teamHandler)
+	teampb.RegisterPlayerServiceServer(gs.Server, playerHandler)
+	teampb.RegisterStaffServiceServer(gs.Server, staffHandler)
+	teampb.RegisterPlayerInviteServiceServer(gs.Server, playerInviteHandler)
 
 	return nil
 }

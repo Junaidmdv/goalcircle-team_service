@@ -15,13 +15,13 @@ import (
 )
 
 type PlayerInviteHandler struct {
-	validater      validater.Validater
+	validater      *validater.Validater
 	playerinviteUc playerinviteuc.PlayerInviteUsecase
 	TimeOut        time.Duration
 	teampb.UnimplementedPlayerInviteServiceServer
 }
 
-func NewPlayerInviteHandler(validater validater.Validater,
+func NewPlayerInviteHandler(validater *validater.Validater,
 	playerinviteruc playerinviteuc.PlayerInviteUsecase,
 	timeOut time.Duration,
 

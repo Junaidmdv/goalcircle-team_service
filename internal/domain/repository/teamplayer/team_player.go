@@ -13,10 +13,13 @@ import (
 )
 
 type TeamPlayerRepository interface {
+	AddTeamPlayer(ctx context.Context, player *entity.TeamPlayer) (*entity.TeamPlayer, error)
 	IsTeamPlayerExist(ctx context.Context, userID uuid.UUID) (bool, error)
 	GetTeamPlayers(ctx context.Context, details *ListPlayerDetailsReq) ([]entity.TeamPlayer, int64, error)
 	GetTeamPlayer(ctx context.Context, teamID uuid.UUID, playerID uuid.UUID) (*entity.TeamPlayer, error)
-	ReleaseTeamPlayer(ctx context.Context, teamID uuid.UUID, playerID uuid.UUID) error
+	ReleaseTeamPlayer(ctx context.Context, teamID uuid.UUID, plyerID uuid.UUID) error
+	IsPlayerPartOfTeam(ctx context.Context, teamID, playerID uuid.UUID) (bool, error)
+	IsJerseyNumberTaken(ctx context.Context, teamID uuid.UUID, jerseyNumber *int32) (bool, error)
 }
 
 type teamPlayerRepository struct {
@@ -37,8 +40,9 @@ func (tp *teamPlayerRepository) IsTeamPlayerExist(ctx context.Context, userID uu
 
 	err := tp.db.WithContext(ctx).
 		Model(&entity.TeamPlayer{}).
+		Joins("JOIN team_members tm ON team_players.team_member_id=tm.id").
 		Where(
-			"user_id = ? AND status <> ? AND left_at IS NULL",
+			"tm.user_id = ? AND team_players.status <> ? AND team_players.left_at IS NULL",
 			userID,
 			entity.TeamPlayerStatusLeft,
 		).
@@ -146,4 +150,31 @@ func (tp *teamPlayerRepository) ReleaseTeamPlayer(
 	}
 
 	return nil
+}
+
+func (tp *teamPlayerRepository) IsPlayerPartOfTeam(ctx context.Context, teamID, playerID uuid.UUID) (bool, error) {
+
+	var exists bool
+	result := tp.db.Raw("SELECT EXISTS(SELECT 1 FROM team_players WHERE player_id = ? AND team_id=?)", playerID, teamID).Scan(&exists)
+
+	if result.Error != nil {
+		return false, apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+	}
+
+	return exists, nil
+}
+
+func (tp *teamPlayerRepository) IsJerseyNumberTaken(ctx context.Context, teamID uuid.UUID, jerseyNumber *int32) (bool, error) {
+	var exists bool
+	result := tp.db.Raw("SELECT EXISTS(SELECT 1 FROM team_players WHERE team_id = ? AND jersey_number=?)", teamID, jerseyNumber).Scan(&exists)
+
+	if result.Error != nil {
+		return false, apperror.NewInternalError(apperror.InternalErrorMsg, result.Error)
+	}
+
+	return exists, nil
+}
+
+func (r *teamPlayerRepository) AddTeamPlayer(ctx context.Context, teamPlayer *entity.TeamPlayer) (*entity.TeamPlayer, error) {
+	return nil, nil
 }

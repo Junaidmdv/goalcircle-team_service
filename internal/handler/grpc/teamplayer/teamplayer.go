@@ -95,3 +95,11 @@ func (ph *TeamPlayerHandler) ListTeamPlayer(ctx context.Context, input *pb.ListT
 		Paginate: paginateDetails,
 	}, nil
 }
+
+
+// func(ph *TeamPlayerHandler)SendPlayerReq(ctx context.Context,input *pb.SendPlayerRequestReq)(*pb.SendPlayerRequestRes,error){ 
+
+// 	ph.teamPlayerUse.
+//      return  nil,nil
+	       
+// }

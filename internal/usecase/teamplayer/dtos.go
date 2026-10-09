@@ -68,3 +68,13 @@ type ReleasePlayerRes struct {
 	ReleasedAt   time.Time
 	JoinedAt     time.Time
 }
+
+type SendPlayerRequestReq struct {
+	UserID   string
+	TeamID   string
+	PlayerID string
+}
+
+type SendPlayerRequestRes struct {
+    
+}

@@ -20,7 +20,7 @@ type TeamPlayer struct {
 	ID           uuid.UUID `json:"id"`
 	PlayerID     uuid.UUID
 	TeamMemberID uuid.UUID `gorm:"type:uuid;uniqueIndex"`
-	JerseyNumber int32
+	JerseyNumber *int32
 	JoinedAt     time.Time
 	LeftAt       time.Time
 	Status       TeamPlayerStatus `json:"status"`

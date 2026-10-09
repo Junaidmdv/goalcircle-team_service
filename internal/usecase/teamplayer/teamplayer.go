@@ -6,11 +6,13 @@ import (
 	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/permission"
+	playerrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/player"
 	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teamplayer"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/storage"
 	"github.com/Junaidmdv/goalcircle-team_service/pkg/apperror"
+	"github.com/Junaidmdv/goalcircle-team_service/pkg/logger"
 	"github.com/google/uuid"
 )
 
@@ -22,14 +24,31 @@ type TeamPlayerUsecase interface {
 
 type teamPlayerUsecase struct {
 	teamPlayerRepo      teamplayer.TeamPlayerRepository
+	playerRepo          playerrepo.PlayerRepository
 	objectStorage       storage.ObjectStorage
 	objectStorageConfig *config.ObjectStorageConfig
 	staffRepo           staffrepo.StaffRepository
 	teamMemberRepo      teammember.TeamMemberRepository
+	logger              logger.Logger
 }
 
-func NewTeamPlayerUsecas() TeamPlayerUsecase {
-	return &teamPlayerUsecase{}
+func NewTeamPlayerUsecas(teamPlayerRepo teamplayer.TeamPlayerRepository,
+	playerrepo playerrepo.PlayerRepository,
+	objstore storage.ObjectStorage,
+	objstorecnfg *config.ObjectStorageConfig,
+	staffRepo staffrepo.StaffRepository,
+	teamMemberRepo teammember.TeamMemberRepository,
+	logger logger.Logger,
+) TeamPlayerUsecase {
+	return &teamPlayerUsecase{
+		teamPlayerRepo:      teamPlayerRepo,
+		playerRepo:          playerrepo,
+		objectStorage:       objstore,
+		objectStorageConfig: objstorecnfg,
+		staffRepo:           staffRepo,
+		teamMemberRepo:      teamMemberRepo,
+		logger:              logger,
+	}
 }
 
 func (pu *teamPlayerUsecase) ListTeamPlayers(ctx context.Context, input *ListTeamPlayersReq) ([]PlayerRes, *PaginateDetails, error) {
@@ -139,7 +158,7 @@ func (pu *teamPlayerUsecase) ReleasePlayer(ctx context.Context, input *ReleasePl
 
 	permite := permission.HasPermission(teamOwnerRole, permission.PermissionReleasePlayer)
 	if !permite {
-		return nil, apperror.NewUnAuthenticatedError("user not allowed to create staff")
+		return nil, apperror.NewUnAuthenticatedError("user not allowed to release player")
 	}
 
 	playerID, err := uuid.Parse(input.PlayerID)

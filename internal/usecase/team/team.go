@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/Junaidmdv/goalcircle-team_service/internal/config"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/entity"
@@ -13,6 +12,7 @@ import (
 	staffrepo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/staff"
 	team_repo "github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/team"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teammember"
+	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/teamplayer"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/domain/repository/transaction"
 	code "github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/invitation"
 	"github.com/Junaidmdv/goalcircle-team_service/internal/infrastructure/storage"
@@ -41,6 +41,7 @@ type teamUsecase struct {
 	teamMemberRepo    teammember.TeamMemberRepository
 	logger            logger.Logger
 	code              code.CodeGenerater
+	teamPlayerRepo    teamplayer.TeamPlayerRepository
 	playerRepo        playerrepo.PlayerRepository
 	objectStore       storage.ObjectStorage
 	objectStoreConfig *config.ObjectStorageConfig
@@ -53,6 +54,7 @@ func NewTeamUsecase(teamrepo team_repo.TeamRepository,
 	logger logger.Logger,
 	code code.CodeGenerater,
 	tmrepo teammember.TeamMemberRepository,
+	teamplayerrepo teamplayer.TeamPlayerRepository,
 	playerepo playerrepo.PlayerRepository,
 	ob storage.ObjectStorage,
 	obconfig *config.ObjectStorageConfig,
@@ -65,6 +67,7 @@ func NewTeamUsecase(teamrepo team_repo.TeamRepository,
 		logger:            logger,
 		code:              code,
 		teamMemberRepo:    tmrepo,
+		teamPlayerRepo:    teamplayerrepo,
 		playerRepo:        playerepo,
 		objectStore:       ob,
 		objectStoreConfig: obconfig,
@@ -117,12 +120,11 @@ func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*Crea
 		}
 
 		teamMemberRes, err := r.TeamMember().AddTeamMember(ctx, &entity.TeamMember{
-			ID:       uuid.New(),
-			TeamID:   teamRes.ID,
-			UserID:   userId,
-			Status:   dt.TeamMemberStatus,
-			JoinedAt: time.Now(),
-			Role:     entity.TeamMemberStaff,
+			ID:     uuid.New(),
+			TeamID: teamRes.ID,
+			UserID: userId,
+			Role:   entity.TeamMemberStaff,
+			Status: entity.TeamMemberStatusActive,
 		})
 		if err != nil {
 			return err
@@ -134,6 +136,7 @@ func (tu *teamUsecase) CreateTeam(ctx context.Context, dt *CreateTeamReq) (*Crea
 			FullName:     dt.OwnerName,
 			Role:         dt.Role,
 			Designation:  dt.Designation,
+			Status:       entity.StaffStatusActive,
 		})
 		if err != nil {
 			return err
@@ -272,21 +275,29 @@ func (tu *teamUsecase) ChangeCaptain(ctx context.Context, req *ChangeCaptainReq)
 		return nil, apperror.NewFailedPreCondition("invalid player id")
 	}
 
-	player, err := tu.playerRepo.GetPlayer(ctx, teamId, playerId)
+	player, err := tu.teamPlayerRepo.GetTeamPlayer(ctx, teamId, playerId)
 	if err != nil {
 		return nil, err
 	}
-
-	if player.TeamMember.Status != entity.TeamMemberStatusActive {
-		return nil, apperror.NewFailedPreCondition("only active players can be selected as captain")
+	if player == nil {
+		return nil, apperror.NewNotFoundError("player not exist in the tam")
 	}
+
+	// player, err := tu.playerRepo.GetPlayer(ctx, teamId, playerId)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// if player.TeamMember.Status != entity.TeamMemberStatusActive {
+	// 	return nil, apperror.NewFailedPreCondition("only active players can be selected as captain")
+	// }
 
 	if err := tu.teamRepo.SetCaptain(ctx, teamId, playerId); err != nil {
 		return nil, err
 	}
 
 	return &ChangeCaptainRes{
-		PlayerID: playerId,
+		PlayerID: player.ID,
 	}, nil
 }
 
@@ -315,21 +326,24 @@ func (tu *teamUsecase) ChangeViceCaptain(ctx context.Context, req *ChangeViceCap
 		return nil, apperror.NewFailedPreCondition("invalid player id")
 	}
 
-	player, err := tu.playerRepo.GetPlayer(ctx, teamId, playerId)
+	player, err := tu.teamPlayerRepo.GetTeamPlayer(ctx, teamId, playerId)
 	if err != nil {
 		return nil, err
 	}
-
-	if player.TeamMember.Status != entity.TeamMemberStatusActive {
-		return nil, apperror.NewFailedPreCondition("only active players can be selected as captain")
+	if player == nil {
+		return nil, apperror.NewNotFoundError("player not exist in the tam")
 	}
+
+	// if player.TeamMember.Status != entity.TeamMemberStatusActive {
+	// 	return nil, apperror.NewFailedPreCondition("only active players can be selected as captain")
+	// }
 
 	if err := tu.teamRepo.SetViceCaptain(ctx, teamId, playerId); err != nil {
 		return nil, err
 	}
 
 	return &ChangeViceCaptainRes{
-		PlayerID: playerId,
+		PlayerID: player.PlayerID,
 	}, nil
 }
 

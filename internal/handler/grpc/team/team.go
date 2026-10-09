@@ -22,19 +22,17 @@ import (
 type TeamHandler struct {
 	teamUsecase team_uc.TeamUsecase
 	pb.UnimplementedTeamServiceServer
-	teamSaga       teamsaga.TeamSagaMaker
-	timeOut        time.Duration
-	validater      *validater.Validater
-	teamMemberSaga teamsaga.TeamMemberSaga
+	teamSaga  teamsaga.TeamSagaMaker
+	timeOut   time.Duration
+	validater *validater.Validater
 }
 
-func NewTeamHandler(tu team_uc.TeamUsecase, teamSaga teamsaga.TeamSagaMaker, timeout time.Duration, validater *validater.Validater, teamMemberSaga teamsaga.TeamMemberSaga) *TeamHandler {
+func NewTeamHandler(tu team_uc.TeamUsecase, teamSaga teamsaga.TeamSagaMaker, timeout time.Duration, validater *validater.Validater) *TeamHandler {
 	return &TeamHandler{
-		teamUsecase:    tu,
-		teamSaga:       teamSaga,
-		timeOut:        timeout,
-		validater:      validater,
-		teamMemberSaga: teamMemberSaga,
+		teamUsecase: tu,
+		teamSaga:    teamSaga,
+		timeOut:     timeout,
+		validater:   validater,
 	}
 }
 
@@ -219,33 +217,7 @@ func (th *TeamHandler) ListTeam(ctx context.Context, req *pb.ListTeamReq) (*pb.L
 
 }
 
-func (th *TeamHandler) RegisterTeamMember(c context.Context, req *pb.RegisterTeamMemberReq) (*pb.RegisterTeamMemberRes, error) {
-	ctx, cancel := context.WithTimeout(c, th.timeOut)
-	defer cancel()
 
-	res, err := th.teamMemberSaga.RegisterTeamMember(ctx, &teamsaga.TeamMemberSagaState{
-		UserID:       req.UserId,
-		Code:         req.Code,
-		RefreshToken: req.RefreshToken,
-	})
-
-	if err != nil {
-		return nil, apperror.GRPCStatus(err)
-	}
-
-	return &pb.RegisterTeamMemberRes{
-
-		UserDetails: &pb.UserRes{
-			SessionId:          res.AddUserRes.SessionID,
-			UserId:             res.AddUserRes.UserID,
-			Email:              res.AddUserRes.Email,
-			AccessToken:        res.AddUserRes.AccessToken,
-			AccessTokenExpiry:  timestamppb.New(res.AddUserRes.AccessTokenExpiry),
-			RefreshToken:       res.AddUserRes.RefreshToken,
-			RefreshTokenExpiry: timestamppb.New(res.AddUserRes.RefreshTokenExpiry),
-		},
-	}, nil
-}
 
 func (th *TeamHandler) AddLogo(stream grpc.ClientStreamingServer[pb.AddLogoReq, pb.AddLogoRes]) error {
 

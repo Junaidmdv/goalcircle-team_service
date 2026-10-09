@@ -39,7 +39,6 @@ type CreateTeamReq struct {
 	OwnerName        string
 	Role             entity.StaffRole
 	Designation      entity.StaffDesignation
-	TeamMemberStatus entity.TeamMemberStatus
 }
 
 type UpdateTeamDetailsReq struct {
